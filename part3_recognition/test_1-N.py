@@ -1,8 +1,8 @@
 import argparse
 import torch
 import numpy as np
-import utils.backbones as backbones
-from utils.load_model import load_normal
+import s_backbones as backbones
+from s_utils.load_model import load_normal
 from config import config as cfg
 from PIL import Image
 from torchvision import transforms
@@ -67,8 +67,7 @@ def extract_feats(backbone, txt_dir, bs=64):
 
 def main(args):
     # net
-    dropout = 0.4 if cfg.dataset is "webface" else 0
-    backbone = backbones.__dict__[args.network](pretrained=False, dropout=dropout, fp16=cfg.fp16)
+    backbone = backbones.__dict__[args.network](dropout=cfg.dropout, fp16=cfg.fp16)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
     backbone = backbone.cuda()
@@ -116,12 +115,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100\backbone.pth')
+    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-new\backbone.pth')
     parser.add_argument('--query_dir', type=str, default=r'E:\data_list\san_results-single-alig.txt')
     parser.add_argument('--key_dir', type=str, default=r'E:\data_list\san_3W.txt')
 
     parser.add_argument('--save_root', type=str, default=r'E:\recognition')
-    parser.add_argument('--note_info', type=str, default='-3W')
+    parser.add_argument('--note_info', type=str, default='-3W-new')
     parser.add_argument('--threshold', type=float, default=0.55)
     parser.add_argument('--bs', type=int, default=12)
 

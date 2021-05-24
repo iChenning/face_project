@@ -1,7 +1,7 @@
 #!/bin/sh
 # to txt list
 cd ./part0_data_prepare
-python path_file2txt.py \
+python path_file_2txt.py \
   --folder_dir /data/cve_data/results/FaceID \
   --txt_dir ../data_list/san_FaceID.txt
 cd ../

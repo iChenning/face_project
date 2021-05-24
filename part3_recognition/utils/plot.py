@@ -10,7 +10,7 @@ from menpo.visualize.viewmatplotlib import sample_colours_from_colourmap
 from prettytable import PrettyTable
 from sklearn.metrics import roc_curve, auc
 
-image_path = "/data/anxiang/IJB_release/IJBC"
+image_path = "../../data1/anxiang/IJB_release/IJBC"
 files = [
         "./ms1mv3_arcface_r100/ms1mv3_arcface_r100/ijbc.npy"
 ]

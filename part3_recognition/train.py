@@ -3,21 +3,27 @@ import logging
 import os
 import time
 import torch
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.nn.functional as F
 import torch.utils.data.distributed
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils import clip_grad_norm_
 
-import utils.backbones as backbones
-import utils.fc as losses
-from utils.fc.partial_fc import PartialFC
+import sys
+
+sys.path.append('.')
+
+import s_backbones as backbones
+import s_fc.losses as losses
+from s_fc.partial_fc import PartialFC
 from config import config as cfg
-from utils.data.dataset_mx import MXFaceDataset
+from s_data.dataset_mx import MXFaceDataset
 from torch.utils.data import DataLoader
-from utils.utils_callbacks import CallBackVerification, CallBackLogging, CallBackModelCheckpoint
-from utils.utils_logging import AverageMeter, init_logging
-from utils.utils_amp import MaxClipGradScaler
+from s_utils.seed_init import rand_seed
+
+from part3_recognition.utils.utils_callbacks import CallBackVerification, CallBackLogging, CallBackModelCheckpoint
+from part3_recognition.utils.utils_logging import AverageMeter, init_logging
+from s_utils.amp import MaxClipGradScaler
 
 torch.backends.cudnn.benchmark = True
 
@@ -46,7 +52,7 @@ def main(args):
                               pin_memory=True, sampler=train_sampler, drop_last=True)
 
     # backbone and DDP
-    backbone = backbones.__dict__[args.network](pretrained=False, dropout=cfg.dropout, fp16=cfg.fp16)
+    backbone = backbones.__dict__[args.network](dropout=cfg.dropout, fp16=cfg.fp16)
     if args.resume:
         try:
             backbone_pth = os.path.join(cfg.output, "backbone.pth")
@@ -132,7 +138,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
     parser.add_argument('--local_rank', type=int, default=0, help='local_rank')
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
+    parser.add_argument('--loss', type=str, default='arcloss', help='loss function')
     parser.add_argument('--resume', type=int, default=0, help='model resuming')
     args_ = parser.parse_args()
+
+    rand_seed()
     main(args_)

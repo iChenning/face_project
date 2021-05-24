@@ -5,9 +5,9 @@ from typing import List
 
 import torch
 
-from eval import verification
-from utils.utils_logging import AverageMeter
-from utils.fc.partial_fc import PartialFC
+from part3_recognition.eval import verification
+from part3_recognition.utils.utils_logging import AverageMeter
+from part3_recognition.utils.fc.partial_fc import PartialFC
 
 
 class CallBackVerification(object):

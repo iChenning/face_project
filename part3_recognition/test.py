@@ -29,15 +29,7 @@ test_trans2 = transforms.Compose([
 
 def main(args):
     # net
-    dropout = 0.4 if cfg.dataset is "webface" else 0
-    backbone = backbones.__dict__[args.network](pretrained=False, dropout=dropout, fp16=cfg.fp16)
-    state_dict = load_normal(args.resume)
-    backbone.load_state_dict(state_dict)
-    backbone = backbone.cuda()
-
-    # macs-params
-    macs, params = profile(backbone, inputs=(torch.rand(1, 3, 112, 112).cuda(),))
-    print('macs:', macs, 'params:', params)
+    backbone = torch.jit.load('int8.pth').to('cpu')
 
     # read path
     f_ = open(args.txt_dir, 'r')
@@ -59,8 +51,8 @@ def main(args):
         img2 = test_trans2(img)
         img2 = torch.unsqueeze(img2, 0)
 
-        feat1 = backbone(img1.cuda())
-        feat2 = backbone(img2.cuda())
+        feat1 = backbone(img1)
+        feat2 = backbone(img2)
         feat = feat1 + feat2
         feats.append(feat.cpu().data)
     feats = torch.cat(feats, 0)
@@ -108,12 +100,12 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-new\backbone.pth')
+    parser.add_argument('--network', type=str, default='iresnet18', help='backbone network')
+    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-iresnet18\backbone.pth')
     parser.add_argument('--txt_dir', type=str, default=r'E:\data_list\san_results-single-alig.txt')
 
     parser.add_argument('--save_root', type=str, default=r'E:\dup')
-    parser.add_argument('--note_info', type=str, default='-new')
+    parser.add_argument('--note_info', type=str, default='-quant')
     parser.add_argument('--san_1920_dir', type=str, default=r'E:\datasets\san_1920')
     parser.add_argument('--threshold', type=float, default=0.55)
 
