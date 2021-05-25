@@ -22,7 +22,7 @@ def main(args):
 if __name__ == '__main__':
     parse = argparse.ArgumentParser()
     parse.add_argument('--folder_dir', type=str, default=r'E:\datasets\san_FaceID')
-    parse.add_argument('--txt_dir', type=str, default='../data_list/san_FaceID.txt', help='work root is arcface_torch')
+    parse.add_argument('--txt_dir', type=str, default='../data_list/san_FaceID.txt')
 
     args = parse.parse_args()
     main(args)

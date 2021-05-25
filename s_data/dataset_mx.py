@@ -53,12 +53,12 @@ class MXFaceDataset(Dataset):
         super(MXFaceDataset, self).__init__()
         self.transform = transforms.Compose(
             [transforms.ToPILImage(),
-             # transforms.RandomResizedCrop(112, scale=(0.8, 1.)),
-             # transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+             transforms.RandomResizedCrop(112, scale=(0.8, 1.)),
+             transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
              transforms.RandomHorizontalFlip(p=0.5),
              transforms.ToTensor(),
-             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-             # Cutout(n_holes=1, length=16)
+             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+             Cutout(n_holes=1, length=16)
              ])
         self.root_dir = root_dir
         path_imgrec = os.path.join(root_dir, 'train.rec')

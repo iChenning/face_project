@@ -1,15 +1,21 @@
-import argparse
-import torch
-import numpy as np
-import utils.backbones as backbones
-from utils.load_model import load_normal
-from config import config as cfg
-from PIL import Image
-from torchvision import transforms
-import torch.nn.functional as F
-from thop import profile
-import shutil
 import os
+import math
+import shutil
+import argparse
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
+from thop import profile
+import torch
+import torch.nn.functional as F
+from torchvision import transforms
+
+import sys
+
+sys.path.append('.')
+
+import s_backbones as backbones
+from s_utils.load_model import load_normal
 
 
 test_trans = transforms.Compose([
@@ -29,15 +35,20 @@ test_trans2 = transforms.Compose([
 
 def main(args):
     # net
-    dropout = 0.4 if cfg.dataset is "webface" else 0
-    backbone = backbones.__dict__[args.network](pretrained=False, dropout=dropout, fp16=cfg.fp16)
+    if len(args.pruned_info) > 0:
+        f_ = open(args.pruned_info)
+        cfg_ = [int(x) for x in f_.read().split()]
+        f_.close()
+    else:
+        cfg_ = None
+    backbone = backbones.__dict__[args.network](cfg=cfg_)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
     backbone = backbone.cuda()
 
     # macs-params
     macs, params = profile(backbone, inputs=(torch.rand(1, 3, 112, 112).cuda(),))
-    print('macs:', macs, 'params:', params)
+    print('macs:', round(macs / 1e9, 2), 'G, params:', round(params / 1e6, 2), 'M')
 
     # read path
     f_ = open(args.txt_dir, 'r')
@@ -109,13 +120,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-new\backbone.pth')
+    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-pruned\backbone.pth')
+    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100.txt')
     parser.add_argument('--txt_dir', type=str, default=r'E:\data_list\san_results-single-alig.txt')
 
-    parser.add_argument('--save_root', type=str, default=r'E:\dup')
-    parser.add_argument('--note_info', type=str, default='-new')
+    parser.add_argument('--save_root', type=str, default=r'E:\results_dup')
+    parser.add_argument('--note_info', type=str, default='')
     parser.add_argument('--san_1920_dir', type=str, default=r'E:\datasets\san_1920')
     parser.add_argument('--threshold', type=float, default=0.55)
 
     args_ = parser.parse_args()
+
     main(args_)

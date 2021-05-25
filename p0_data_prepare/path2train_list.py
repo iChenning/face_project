@@ -24,9 +24,8 @@ def run(args):
 
 if __name__ == '__main__':
     parse = argparse.ArgumentParser()
-    parse.add_argument('--folder_dir', type=str, default=r'E:\datasets\faces_CASIA-WebFace-112x112')
-    parse.add_argument('--txt_dir', type=str, default='data_list/train_casia-webface_list.txt',
-                       help='work root is arcface_torch')
+    parse.add_argument('--folder_dir', type=str, default='/data/cve_data/CveTestResult/glint360k')
+    parse.add_argument('--txt_dir', type=str, default='/home/xianfeng.chen/workspace/list-zoo/train_glint360k_list.txt')
 
     args = parse.parse_args()
     run(args)

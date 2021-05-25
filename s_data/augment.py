@@ -72,12 +72,14 @@ class GaussianBlur(object):
 #     ])
 #     return train_transforms
 
-def train_trans(img_size, n_holes=None, length=None):
+def train_trans(img_size=112, n_holes=None, length=None):
     train_transforms = transforms.Compose([
+        transforms.RandomResizedCrop(112, scale=(0.8, 1.)),
         transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        Cutout(n_holes=1, length=16)
     ])
     return train_transforms
 
@@ -86,6 +88,6 @@ def test_trans(img_size):
     test_transforms = transforms.Compose([
         transforms.Resize((img_size, img_size)),
         transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
     return test_transforms

@@ -1,17 +1,21 @@
+import os
+import math
+import shutil
 import argparse
-import torch
 import numpy as np
+from PIL import Image
+from tqdm import tqdm
+from thop import profile
+import torch
+import torch.nn.functional as F
+from torchvision import transforms
+
+import sys
+
+sys.path.append('.')
+
 import s_backbones as backbones
 from s_utils.load_model import load_normal
-from config import config as cfg
-from PIL import Image
-from torchvision import transforms
-import torch.nn.functional as F
-from thop import profile
-import shutil
-import os
-from tqdm import tqdm
-import math
 
 
 test_trans = transforms.Compose([
@@ -67,14 +71,20 @@ def extract_feats(backbone, txt_dir, bs=64):
 
 def main(args):
     # net
-    backbone = backbones.__dict__[args.network](dropout=cfg.dropout, fp16=cfg.fp16)
+    if len(args.pruned_info) > 0:
+        f_ = open(args.pruned_info)
+        cfg_ = [int(x) for x in f_.read().split()]
+        f_.close()
+    else:
+        cfg_ = None
+    backbone = backbones.__dict__[args.network](cfg=cfg_)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
     backbone = backbone.cuda()
 
     # macs-params
     macs, params = profile(backbone, inputs=(torch.rand(1, 3, 112, 112).cuda(),))
-    print('macs:', macs, 'params:', params)
+    print('macs:', round(macs / 1e9, 2), 'G, params:', round(params / 1e6, 2), 'M')
 
     # key feats
     key_feats, key_paths = extract_feats(backbone, args.key_dir, args.bs)
@@ -115,11 +125,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
+    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100.txt')
     parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-new\backbone.pth')
     parser.add_argument('--query_dir', type=str, default=r'E:\data_list\san_results-single-alig.txt')
     parser.add_argument('--key_dir', type=str, default=r'E:\data_list\san_3W.txt')
 
-    parser.add_argument('--save_root', type=str, default=r'E:\recognition')
+    parser.add_argument('--save_root', type=str, default=r'E:\results-1_N')
     parser.add_argument('--note_info', type=str, default='-3W-new')
     parser.add_argument('--threshold', type=float, default=0.55)
     parser.add_argument('--bs', type=int, default=12)
