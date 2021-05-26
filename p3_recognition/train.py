@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-import sys
-
-sys.path.append('.')
+# import sys
+#
+# sys.path.append('.')
 
 import s_backbones as backbones
 import s_fc.losses as losses

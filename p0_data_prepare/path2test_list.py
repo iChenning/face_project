@@ -21,8 +21,9 @@ def main(args):
 
 if __name__ == '__main__':
     parse = argparse.ArgumentParser()
-    parse.add_argument('--folder_dir', type=str, default=r'E:\datasets\san_FaceID')
-    parse.add_argument('--txt_dir', type=str, default='../data_list/san_FaceID.txt')
+    parse.add_argument('--folder_dir', type=str,
+                       default='/home/xianfeng.chen/workspace/dataset-zoo/face_recognition-test/1_1/agedb_30')
+    parse.add_argument('--txt_dir', type=str, default='/home/xianfeng.chen/workspace/list-zoo/test-agedb_30.txt')
 
     args = parse.parse_args()
     main(args)

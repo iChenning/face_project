@@ -12,11 +12,9 @@ import math
 
 import sys
 
-sys.path.append('../p3_recognition')
+sys.path.append('.')
 
 from s_utils.seed_init import rand_seed
-import s_backbones as backbones
-from s_utils.load_model import load_normal
 
 device = torch.device('cpu')
 
@@ -59,62 +57,63 @@ def extract_feats(backbone, txt_dir, bs=64):
     fs1 = []
     fs2 = []
     labels = []
-    backbone.eval()
-    for i in tqdm(range(math.ceil(len(paths_labels) / bs))):
-        sub_pl = paths_labels[i * bs: min(i * bs + bs, len(f_paths))]
-        imgs1 = []
-        imgs1_f = []
-        imgs2 = []
-        imgs2_f = []
-        for path1, path2, label in sub_pl:
-            labels.append(label)
+    with torch.no_grad():
+        backbone.eval()
+        for i in tqdm(range(math.ceil(len(paths_labels) / bs))):
+            sub_pl = paths_labels[i * bs: min(i * bs + bs, len(f_paths))]
+            imgs1 = []
+            imgs1_f = []
+            imgs2 = []
+            imgs2_f = []
+            for path1, path2, label in sub_pl:
+                labels.append(label)
 
-            img = Image.open(path1).convert("RGB")
-            img1 = test_trans(img)
-            img1 = torch.unsqueeze(img1, 0)
-            imgs1.append(img1)
-            img1_f = test_trans2(img)
-            img1_f = torch.unsqueeze(img1_f, 0)
-            imgs1_f.append(img1_f)
+                img = Image.open(path1).convert("RGB")
+                img1 = test_trans(img)
+                img1 = torch.unsqueeze(img1, 0)
+                imgs1.append(img1)
+                img1_f = test_trans2(img)
+                img1_f = torch.unsqueeze(img1_f, 0)
+                imgs1_f.append(img1_f)
 
-            img = Image.open(path2).convert("RGB")
-            img2 = test_trans(img)
-            img2 = torch.unsqueeze(img2, 0)
-            imgs2.append(img2)
-            img2_f = test_trans2(img)
-            img2_f = torch.unsqueeze(img2_f, 0)
-            imgs2_f.append(img2_f)
+                img = Image.open(path2).convert("RGB")
+                img2 = test_trans(img)
+                img2 = torch.unsqueeze(img2, 0)
+                imgs2.append(img2)
+                img2_f = test_trans2(img)
+                img2_f = torch.unsqueeze(img2_f, 0)
+                imgs2_f.append(img2_f)
 
-        imgs1 = torch.cat(imgs1, dim=0)
-        imgs1_f = torch.cat(imgs1_f, dim=0)
-        imgs2 = torch.cat(imgs2, dim=0)
-        imgs2_f = torch.cat(imgs2_f, dim=0)
-        feat1 = backbone(imgs1.to(device))
-        feat1_f = backbone(imgs1_f.to(device))
-        feat2 = backbone(imgs2.to(device))
-        feat2_f = backbone(imgs2_f.to(device))
-        f1 = feat1 + feat1_f
-        f2 = feat2 + feat2_f
-        fs1.append(f1.cpu().data)
-        fs2.append(f2.cpu().data)
-    fs1 = torch.cat(fs1, 0)
-    fs1 = F.normalize(fs1)
-    fs2 = torch.cat(fs2, 0)
-    fs2 = F.normalize(fs2)
+            imgs1 = torch.cat(imgs1, dim=0)
+            imgs1_f = torch.cat(imgs1_f, dim=0)
+            imgs2 = torch.cat(imgs2, dim=0)
+            imgs2_f = torch.cat(imgs2_f, dim=0)
+            feat1 = backbone(imgs1.to(device))
+            feat1_f = backbone(imgs1_f.to(device))
+            feat2 = backbone(imgs2.to(device))
+            feat2_f = backbone(imgs2_f.to(device))
+            f1 = feat1 + feat1_f
+            f2 = feat2 + feat2_f
+            fs1.append(f1.cpu().data)
+            fs2.append(f2.cpu().data)
+        fs1 = torch.cat(fs1, 0)
+        fs1 = F.normalize(fs1)
+        fs2 = torch.cat(fs2, 0)
+        fs2 = F.normalize(fs2)
 
     return fs1, fs2, torch.tensor(labels)
 
 
 def main(args):
     # net
-    backbone = torch.jit.load('int8.pth').to(device)
+    backbone = torch.jit.load(args.quantized_dir).to(device)
 
     # feats
     fs1, fs2, labels = extract_feats(backbone, args.txt_dir, args.bs)
     s = torch.sum(fs1 * fs2, dim=1)
 
     # acc save
-    r_ = os.path.join(args.save_root, os.path.split(os.path.split(args.resume)[0])[-1]) + args.note_info
+    r_ = os.path.join(args.save_root, os.path.split(os.path.split(args.quantized_dir)[0])[-1]) + args.note_info
     if not os.path.exists(r_):
         os.makedirs(r_)
     txt_name = args.txt_dir.split('-')[-1]
@@ -139,14 +138,13 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-pruned\backbone.pth')
-    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100.txt')
-    parser.add_argument('--txt_dir', type=str, default=r'E:data_list\test-1_1-agedb_30.txt')
+    parser.add_argument('--quantized_dir', type=str,
+                        default=r'E:\model-zoo\glint360k-iresnet100-quantized\backbone.tar')
+    parser.add_argument('--txt_dir', type=str, default=r'E:list-zoo\test-1_1-agedb_30.txt')
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_1')
-    parser.add_argument('--note_info', type=str, default='-pruned-quant')
-    parser.add_argument('--bs', type=int, default=6)
+    parser.add_argument('--note_info', type=str, default='')
+    parser.add_argument('--bs', type=int, default=32)
 
     args_ = parser.parse_args()
     rand_seed()

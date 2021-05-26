@@ -148,13 +148,13 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100.txt')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-pruned\backbone.pth')
-    parser.add_argument('--txt_dir', type=str, default=r'E:data_list\test-1_1-lfw.txt')
+    parser.add_argument('--network', type=str, default='iresnet18', help='backbone network')
+    parser.add_argument('--pruned_info', type=str, default='')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-iresnet18\backbone.pth')
+    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-lfw.txt')
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_1')
-    parser.add_argument('--note_info', type=str, default='-pruned')
+    parser.add_argument('--note_info', type=str, default='')
     parser.add_argument('--bs', type=int, default=6)
 
     args_ = parser.parse_args()

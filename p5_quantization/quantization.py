@@ -12,47 +12,23 @@ from torch.utils.data import Dataset
 
 import sys
 
-sys.path.append('../p3_recognition')
+sys.path.append('.')
 
 import s_backbones as backbones
 from s_utils.load_model import load_normal
-from s_data.dataset import MyDataset
-
-
-device = torch.device('cuda')
-
-
-class MyDataset(Dataset):
-    def __init__(self, txt_path, transform=None):
-        assert os.path.exists(txt_path), "nonexistent:" + txt_path
-        f = open(txt_path, 'r', encoding='utf-8')
-        imgs = []
-        for line in f:
-            line = line.rstrip()
-            words = line.split()
-            imgs.append(words[0].encode('utf-8'))
-        f.close()
-        self.imgs = imgs
-        self.transform = transform
-
-    def __getitem__(self, index):
-        f_path= self.imgs[index]
-        img = Image.open(f_path).convert("RGB")
-
-        if self.transform is not None:
-            img = self.transform(img)
-
-        return img
-
-    def __len__(self):
-        return len(self.imgs)
+from s_data.dataset_mx import MXFaceDataset
 
 
 def calibrate(model, data_loader):
     model.eval()
     with torch.no_grad():
-        for image in tqdm(data_loader):
-            model(image.to(device))
+        count = 0
+        for (img, label) in tqdm(data_loader):
+            if count > 500:
+                break
+            model(img.cuda())
+            count += 1
+
 
 
 test_transform = torchvision.transforms.Compose([
@@ -62,39 +38,54 @@ test_transform = torchvision.transforms.Compose([
 
 def main(args):
     # data
-    test_dataset = MyDataset(r'E:\data_list\test-1_1-agedb_30.txt', test_transform)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                              batch_size=128,
-                                              shuffle=False,
-                                              pin_memory=True,
-                                              num_workers=8)
+    trainset = MXFaceDataset(root_dir=args.train_txt)
+    train_loader = DataLoader(trainset, args.bs, shuffle=True, num_workers=8,
+                              pin_memory=True, drop_last=True)
 
     # net
-    f_ = open(args.pruned_info)
-    cfg_ = [int(x) for x in f_.read().split()]
-    f_.close()
-    net = backbones.__dict__[args.network](cfg=cfg_)
+    if len(args.pruned_info) > 0:
+        f_ = open(args.pruned_info)
+        cfg_ = [int(x) for x in f_.read().split()]
+        f_.close()
+    else:
+        cfg_ = None
+    backbone = backbones.__dict__[args.network](cfg=cfg_)
     state_dict = load_normal(args.resume)
-    net.load_state_dict(state_dict)
-    net.dropout = torch.nn.Sequential()
+    backbone.load_state_dict(state_dict)
+    backbone.dropout = torch.nn.Sequential()
 
-    model = copy.deepcopy(net).to(device)
+    # quantization
+    model = copy.deepcopy(backbone).cuda()
     model.eval()
     graph_module = torch.fx.symbolic_trace(model)
-    qconfig = get_default_qconfig("qnnpack")
+    qconfig = get_default_qconfig("fbgemm")
     qconfig_dict = {"": qconfig}
     model_prepared = prepare_fx(graph_module, qconfig_dict)
-    calibrate(model_prepared, test_loader)  # 这一步是做后训练量化
+    calibrate(model_prepared, train_loader)  # 这一步是做后训练量化
     model_int8 = convert_fx(model_prepared)
-    torch.jit.save(torch.jit.script(model_int8), 'int8.pth')
+
+    # save
+    r_ = os.path.join(args.save_root, os.path.split(os.path.split(args.resume)[0])[-1]) + args.note_info
+    if not os.path.exists(r_):
+        os.makedirs(r_)
+    torch.jit.save(torch.jit.script(model_int8), os.path.join(r_, 'backbone.tar'))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
+    parser.add_argument('--train_txt', type=str, default='/data/cve_data/glint360/glint360_data/')
+    parser.add_argument('--bs', type=int, default=256)
+
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100.txt')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-pruned\backbone.pth')
+    parser.add_argument('--pruned_info', type=str,
+                        default='/home/xianfeng.chen/workspace/pruned_info-zoo/glint360k-se_iresnet100.txt')
+    parser.add_argument('--resume', type=str,
+                        default='/home/xianfeng.chen/workspace/model-zoo/glint360k-se_iresnet100-pruned/backbone.pth')
+
+    parser.add_argument('--save_root', type=str,
+                        default='/home/xianfeng.chen/workspace/model-zoo')
+    parser.add_argument('--note_info', type=str, default='-quantized')
 
     args = parser.parse_args()
 
