@@ -1,5 +1,6 @@
 import os
 import time
+import copy
 import logging
 import argparse
 import torch
@@ -9,18 +10,18 @@ import torch.utils.data.distributed
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.quantization.quantize_fx import prepare_qat_fx, convert_fx
 import sys
 
 sys.path.append('.')
 
 import s_backbones as backbones
-import s_fc.losses as losses
 from s_fc.partial_fc import PartialFC
+from s_utils.load_model import load_normal
+import s_fc.losses as losses
 from s_data.dataset_mx import MXFaceDataset
 from s_utils.seed_init import rand_seed
 from s_utils.log import init_logging
-
-torch.backends.cudnn.benchmark = True
 
 
 def main(args):
@@ -46,29 +47,39 @@ def main(args):
     train_loader = DataLoader(trainset, args.bs, shuffle=False, num_workers=8,
                               pin_memory=True, sampler=train_sampler, drop_last=True)
 
-    # backbone and DDP
-    backbone = backbones.__dict__[args.network](dropout=args.dropout)
-    if args.resume:
-        try:
-            backbone_pth = os.path.join(args.save_dir, "backbone.pth")
-            backbone.load_state_dict(torch.load(backbone_pth, map_location=torch.device(local_rank)))
-            if rank is 0:
-                logging.info("backbone resume successfully!")
-        except (FileNotFoundError, KeyError, IndexError, RuntimeError):
-            logging.info("resume fail, backbone init successfully!")
-    backbone = backbone.cuda()
-    backbone = torch.nn.SyncBatchNorm.convert_sync_batchnorm(backbone)
-    backbone = DDP(module=backbone, device_ids=[local_rank])
+    # net
+    if len(args.pruned_info) > 0:
+        f_ = open(args.pruned_info)
+        cfg_ = [int(x) for x in f_.read().split()]
+        f_.close()
+    else:
+        cfg_ = None
+    backbone = backbones.__dict__[args.network](cfg=cfg_)
+    state_dict = load_normal(args.resume)
+    backbone.load_state_dict(state_dict)
+    backbone.dropout = torch.nn.Sequential()
 
+    # quantization
+    prefix_ = os.path.split(args.resume)[0]
+    model_to_quantize = copy.deepcopy(backbone)
+    del backbone
+    qconfig_dict = {"": torch.quantization.get_default_qat_qconfig('fbgemm')}
+    model_to_quantize.train()
+    model_prepared = prepare_qat_fx(model_to_quantize, qconfig_dict)
+    if os.path.exists(os.path.join(prefix_, 'model_prepared.pth')):
+        model_prepared.load_state_dict(load_normal(os.path.join(prefix_, 'model_prepared.pth')))
+        if rank == 0:
+            logging.info('load model_perpared.pth')
+    model_prepared = model_prepared.cuda()
+    model_prepared = DDP(module=model_prepared, device_ids=[local_rank])
     # fc and loss
     margin_softmax = losses.__dict__[args.loss]()
     module_partial_fc = PartialFC(
         rank=rank, local_rank=local_rank, world_size=world_size, resume=args.resume,
         batch_size=args.bs, margin_softmax=margin_softmax, num_classes=360232,
-        sample_rate=args.sample_rate, embedding_size=args.embedding_size, prefix=args.save_dir)
-
+        sample_rate=args.sample_rate, embedding_size=args.embedding_size, prefix=prefix_)
     # optimizer
-    opt_backbone = torch.optim.SGD(params=[{'params': backbone.parameters()}],
+    opt_backbone = torch.optim.SGD(params=[{'params': model_prepared.parameters()}],
                                    lr=args.lr / 512 * args.bs * world_size,
                                    momentum=args.momentum,
                                    weight_decay=args.weight_decay)
@@ -78,12 +89,10 @@ def main(args):
                               weight_decay=args.weight_decay)
     scheduler_backbone = torch.optim.lr_scheduler.MultiStepLR(opt_backbone, args.milestones, args.gamma)
     scheduler_pfc = torch.optim.lr_scheduler.MultiStepLR(opt_pfc, args.milestones, args.gamma)
-
-    # train and test
-    log_fre = len(train_loader) if args.log_fre is None else args.log_fre
     start_epoch = 0
+    log_fre = len(train_loader) if args.log_fre is None else args.log_fre
     for i_epoch in range(start_epoch, args.max_epoch):
-        backbone.train()
+        model_prepared.train()
         module_partial_fc.train()
         train_sampler.set_epoch(i_epoch)  # essential
         start_time = time.time()
@@ -94,10 +103,10 @@ def main(args):
             # forward and backward
             opt_backbone.zero_grad()
             opt_pfc.zero_grad()
-            features = F.normalize(backbone(img))
+            features = F.normalize(model_prepared(img))
             x_grad, loss_v = module_partial_fc.forward_backward(label, features, opt_pfc)
             features.backward(x_grad)
-            clip_grad_norm_(backbone.parameters(), max_norm=5, norm_type=2)
+            clip_grad_norm_(model_prepared.parameters(), max_norm=5, norm_type=2)
             opt_backbone.step()
             opt_pfc.step()
             module_partial_fc.update()
@@ -119,11 +128,15 @@ def main(args):
 
         scheduler_backbone.step()
         scheduler_pfc.step()
-
         # save
         if rank is 0:
-            torch.save(backbone.module.state_dict(), os.path.join(args.save_dir, "backbone.pth"))
+            torch.save(model_prepared.module.state_dict(), os.path.join(args.save_dir, "model_prepared.pth"))
         module_partial_fc.save_params()
+
+    model_int8 = convert_fx(model_prepared.module)
+    # save
+    if rank is 0:
+        torch.jit.save(torch.jit.script(model_int8), os.path.join(args.save_dir, 'backbone-QAT.tar'))
 
     # release dist
     dist.destroy_process_group()
@@ -135,18 +148,21 @@ if __name__ == "__main__":
 
     parser.add_argument('--train_txt', type=str, default='/data/cve_data/glint360/glint360_data/')
     parser.add_argument('--test_txt', type=str, default='')
-    parser.add_argument('--bs', type=int, default=128)
+    parser.add_argument('--bs', type=int, default=96)
 
-    parser.add_argument('--network', type=str, default='se_iresnet18', help='backbone network')
-    parser.add_argument('--loss', type=str, default='arcloss', help='loss function')
+    parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
+    parser.add_argument('--pruned_info', type=str,
+                        default='/home/xianfeng.chen/workspace/pruned_info-zoo/glint360k-se_iresnet100.txt')
+    parser.add_argument('--resume', type=str,
+                        default='/home/xianfeng.chen/workspace/model-zoo/glint360k-se_iresnet100-pruned-QAT/backbone.pth')
+    parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
     parser.add_argument('--sample_rate', type=float, default=1.0)
-    parser.add_argument('--resume', type=int, default=0, help='model resuming')
 
-    parser.add_argument('--max_epoch', type=int, default=20, help='20 for glint360k, 100 for webface')
-    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--max_epoch', type=int, default=10, help='20 for glint360k, 100 for webface')
+    parser.add_argument('--lr', type=float, default=1e-2)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight_decay', type=float, default=5e-4)
-    parser.add_argument('--milestones', type=list, default=[6, 11, 15, 18],
+    parser.add_argument('--milestones', type=list, default=[5, 8],
                         help='[6, 11, 15, 18] for glint360k, [40, 70, 90] for webface')
     parser.add_argument('--gamma', type=float, default=0.1)
     parser.add_argument('--dropout', type=float, default=0.0, help='0.0 for glint360k, 0.4 for webface')
@@ -155,11 +171,11 @@ if __name__ == "__main__":
 
     parser.add_argument('--model_zoo', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
     parser.add_argument('--set_name', type=str, default='glint360k')
-    parser.add_argument('--node', type=str, default='')
+    parser.add_argument('--node', type=str, default='-pruned-QAT')
     parser.add_argument('--log_fre', type=int, default=100)
 
     args = parser.parse_args()
-    args.save_dir = os.path.join(args.model_zoo, args.set_name + '-' + args.network + '-' + args.loss + args.node)
+    args.save_dir = os.path.join(args.model_zoo, args.set_name + '-' + args.network + args.node)
 
     rand_seed()
     main(args)

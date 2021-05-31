@@ -139,11 +139,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--quantized_dir', type=str,
-                        default=r'E:\model-zoo\glint360k-iresnet100-quantized\backbone.tar')
+                        default=r'E:\model-zoo\glint360k-se_iresnet100-pruned-quantized\backbone.tar')
     parser.add_argument('--txt_dir', type=str, default=r'E:list-zoo\test-1_1-agedb_30.txt')
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_1')
-    parser.add_argument('--note_info', type=str, default='')
+    parser.add_argument('--note_info', type=str, default='-3000')
     parser.add_argument('--bs', type=int, default=32)
 
     args_ = parser.parse_args()

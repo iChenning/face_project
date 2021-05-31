@@ -49,6 +49,7 @@ class SEModule(nn.Module):
 
 class IBasicBlock(nn.Module):
     expansion = 1
+
     def __init__(self, sub_cfg, stride=1, downsample=None,
                  groups=1, base_width=64, dilation=1, reduction=16):
         super(IBasicBlock, self).__init__()
@@ -85,11 +86,11 @@ class IBasicBlock(nn.Module):
 
 class IResNet(nn.Module):
     fc_scale = 7 * 7
+
     def __init__(self,
                  block, layers, dropout=0, num_features=512, zero_init_residual=False, cfg=None,
-                 groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False):
+                 groups=1, width_per_group=64, replace_stride_with_dilation=None):
         super(IResNet, self).__init__()
-        self.fp16 = fp16
         self.inplanes = 64
         self.dilation = 1
         if replace_stride_with_dilation is None:
@@ -125,7 +126,7 @@ class IResNet(nn.Module):
                                        cfg[sum(layers[:3]) * 2: sum(layers[:]) * 2 + 1],
                                        stride=2,
                                        dilate=replace_stride_with_dilation[2])
-        self.bn2 = nn.BatchNorm2d(cfg[-1], eps=1e-05,)
+        self.bn2 = nn.BatchNorm2d(cfg[-1], eps=1e-05, )
         self.dropout = nn.Dropout(p=dropout, inplace=True)
         self.fc = nn.Linear(cfg[-1] * block.expansion * self.fc_scale, num_features)
         self.features = nn.BatchNorm1d(num_features, eps=1e-05)
@@ -173,18 +174,17 @@ class IResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        with torch.cuda.amp.autocast(self.fp16):
-            x = self.conv1(x)
-            x = self.bn1(x)
-            x = self.prelu(x)
-            x = self.layer1(x)
-            x = self.layer2(x)
-            x = self.layer3(x)
-            x = self.layer4(x)
-            x = self.bn2(x)
-            x = torch.flatten(x, 1)
-            x = self.dropout(x)
-        x = self.fc(x.float() if self.fp16 else x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.prelu(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.bn2(x)
+        x = torch.flatten(x, 1)
+        x = self.dropout(x)
+        x = self.fc(x)
         x = self.features(x)
         return x
 
@@ -223,5 +223,6 @@ if __name__ == '__main__':
 
     # macs-params
     from thop import profile
+
     macs, params = profile(net, inputs=(torch.rand(1, 3, 112, 112),))
     print('macs:', round(macs / 1e9, 2), 'G, params:', round(params / 1e6, 2), 'M')

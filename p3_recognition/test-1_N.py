@@ -17,6 +17,8 @@ sys.path.append('.')
 import s_backbones as backbones
 from s_utils.load_model import load_normal
 
+device = torch.device('cuda')
+
 
 test_trans = transforms.Compose([
         transforms.Resize((112, 112)),
@@ -33,14 +35,24 @@ test_trans2 = transforms.Compose([
     ])
 
 
-def extract_feats(backbone, txt_dir, bs=64):
+def extract_feats(backbone, txt_dir, bs=64, isQ=False):
     # read path
-    f_ = open(txt_dir, 'r')
-    f_paths = []
-    for line in f_.readlines():
-        line = line.replace('\n', '')
-        f_paths.append(line)
-    f_.close()
+    if isQ:
+        f_ = open(txt_dir, 'r')
+        f_paths = []
+        IDs = []
+        for line in f_.readlines():
+            words = line.replace('\n', '').split()
+            f_paths.append(words[0])
+            IDs.append(words[1])
+        f_.close()
+    else:
+        f_ = open(txt_dir, 'r')
+        f_paths = []
+        for line in f_.readlines():
+            line = line.replace('\n', '')
+            f_paths.append(line)
+        f_.close()
 
     # feats
     feats = []
@@ -60,13 +72,16 @@ def extract_feats(backbone, txt_dir, bs=64):
 
         imgs1 = torch.cat(imgs1, dim=0)
         imgs2 = torch.cat(imgs2, dim=0)
-        feat1 = backbone(imgs1.cuda())
-        feat2 = backbone(imgs2.cuda())
+        feat1 = backbone(imgs1.to(device))
+        feat2 = backbone(imgs2.to(device))
         feat = feat1 + feat2
         feats.append(feat.cpu().data)
     feats = torch.cat(feats, 0)
     feats = F.normalize(feats)
-    return feats, f_paths
+    if isQ:
+        return feats, f_paths, IDs
+    else:
+        return feats, f_paths
 
 
 def main(args):
@@ -80,17 +95,17 @@ def main(args):
     backbone = backbones.__dict__[args.network](cfg=cfg_)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
-    backbone = backbone.cuda()
+    backbone = backbone.to(device)
 
     # macs-params
-    macs, params = profile(backbone, inputs=(torch.rand(1, 3, 112, 112).cuda(),))
+    macs, params = profile(backbone, inputs=(torch.rand(1, 3, 112, 112).to(device),))
     print('macs:', round(macs / 1e9, 2), 'G, params:', round(params / 1e6, 2), 'M')
 
     # key feats
-    key_feats, key_paths = extract_feats(backbone, args.key_dir, args.bs)
+    key_feats, key_paths = extract_feats(backbone, args.key_dir, args.bs, isQ=False)
 
     # query feats
-    query_feats, query_paths = extract_feats(backbone, args.query_dir, args.bs)
+    query_feats, query_paths, IDs = extract_feats(backbone, args.query_dir, args.bs, isQ=True)
 
     # similarity
     s = torch.mm(query_feats, key_feats.T)
@@ -106,16 +121,26 @@ def main(args):
     if not os.path.exists(r_):
         os.makedirs(r_)
     for i in range(s.shape[0]):
-        if not os.path.exists(os.path.join(r_, str(i).zfill(3) + '_' + str(int(s_max[i] * 100)))):
-            os.makedirs(os.path.join(r_, str(i).zfill(3) + '_' + str(int(s_max[i] * 100))))
+        id = IDs[i]
+        if id in key_paths[s_argmax[i]] and s_max[i] > args.threshold:
+            r_new = os.path.join(r_, 'isAccept')
+        else:
+            if id in key_paths[s_argmax[i]]:
+                r_new = os.path.join(r_, 'isSame')
+            else:
+                r_new = os.path.join(r_, 'isDiff')
+
+        folder_ = os.path.join(r_new, str(i).zfill(3) + '_' + str(int(s_max[i] * 100)))
+        if not os.path.exists(folder_):
+            os.makedirs(folder_)
         old_p = query_paths[i]
         name_ = os.path.split(old_p)[-1]
-        new_p = os.path.join(r_, str(i).zfill(3) + '_' + str(int(s_max[i] * 100)), name_)
+        new_p = os.path.join(folder_, name_)
         shutil.copy(old_p, new_p)
 
         old_p = key_paths[s_argmax[i]]
         name_ = os.path.split(old_p)[-1]
-        new_p = os.path.join(r_, str(i).zfill(3) + '_' + str(int(s_max[i] * 100)), name_)
+        new_p = os.path.join(folder_, name_)
         shutil.copy(old_p, new_p)
 
     print('done')
@@ -125,10 +150,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100.txt')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-new\backbone.pth')
-    parser.add_argument('--query_dir', type=str, default=r'E:\data_list\san_results-single-alig.txt')
-    parser.add_argument('--key_dir', type=str, default=r'E:\data_list\san_3W.txt')
+    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info-zoo\glint360k-se_iresnet100.txt')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-se_iresnet100-pruned\backbone.pth')
+    parser.add_argument('--query_dir', type=str, default=r'E:\list-zoo\san_results-single-alig-ID.txt')
+    parser.add_argument('--key_dir', type=str, default=r'E:\list-zoo\san_3W.txt')
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_N')
     parser.add_argument('--note_info', type=str, default='-3W-new')

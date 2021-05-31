@@ -8,10 +8,6 @@ import torch
 import torch.nn.functional as F
 from torchvision import transforms
 
-import sys
-
-sys.path.append('.')
-
 import s_backbones as backbones
 from s_utils.load_model import load_normal
 

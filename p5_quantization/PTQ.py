@@ -24,7 +24,7 @@ def calibrate(model, data_loader):
     with torch.no_grad():
         count = 0
         for (img, label) in tqdm(data_loader):
-            if count > 500:
+            if count > 3000:
                 break
             model(img.cuda())
             count += 1
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--save_root', type=str,
                         default='/home/xianfeng.chen/workspace/model-zoo')
-    parser.add_argument('--note_info', type=str, default='-quantized')
+    parser.add_argument('--note_info', type=str, default='-PTQ')
 
     args = parser.parse_args()
 
