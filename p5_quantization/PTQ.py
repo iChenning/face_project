@@ -24,7 +24,7 @@ def calibrate(model, data_loader):
     with torch.no_grad():
         count = 0
         for (img, label) in tqdm(data_loader):
-            if count > 3000:
+            if count > 100:
                 break
             model(img.cuda())
             count += 1
@@ -58,7 +58,7 @@ def main(args):
     model = copy.deepcopy(backbone).cuda()
     model.eval()
     graph_module = torch.fx.symbolic_trace(model)
-    qconfig = get_default_qconfig("fbgemm")
+    qconfig = get_default_qconfig("qnnpack")
     qconfig_dict = {"": qconfig}
     model_prepared = prepare_fx(graph_module, qconfig_dict)
     calibrate(model_prepared, train_loader)  # 这一步是做后训练量化
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--save_root', type=str,
                         default='/home/xianfeng.chen/workspace/model-zoo')
-    parser.add_argument('--note_info', type=str, default='-PTQ')
+    parser.add_argument('--note_info', type=str, default='-PTQ2')
 
     args = parser.parse_args()
 

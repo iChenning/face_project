@@ -133,7 +133,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--quantized_dir', type=str,
-                        default=r'E:\model-zoo\glint360k-iresnet100-PTQ\backbone.tar')
+                        default=r'E:\model-zoo\glint360k-se_iresnet100-pruned-QAT\backbone-QAT.tar')
     parser.add_argument('--query_dir', type=str, default=r'E:\list-zoo\san_results-single-alig-ID.txt')
     parser.add_argument('--key_dir', type=str, default=r'E:\list-zoo\san_3W.txt')
 

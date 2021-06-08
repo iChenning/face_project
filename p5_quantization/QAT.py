@@ -89,6 +89,7 @@ def main(args):
                               weight_decay=args.weight_decay)
     scheduler_backbone = torch.optim.lr_scheduler.MultiStepLR(opt_backbone, args.milestones, args.gamma)
     scheduler_pfc = torch.optim.lr_scheduler.MultiStepLR(opt_pfc, args.milestones, args.gamma)
+
     start_epoch = 0
     log_fre = len(train_loader) if args.log_fre is None else args.log_fre
     for i_epoch in range(start_epoch, args.max_epoch):
@@ -128,15 +129,15 @@ def main(args):
 
         scheduler_backbone.step()
         scheduler_pfc.step()
-        # save
-        if rank is 0:
-            torch.save(model_prepared.module.state_dict(), os.path.join(args.save_dir, "model_prepared.pth"))
-        module_partial_fc.save_params()
 
-    model_int8 = convert_fx(model_prepared.module)
-    # save
-    if rank is 0:
-        torch.jit.save(torch.jit.script(model_int8), os.path.join(args.save_dir, 'backbone-QAT.tar'))
+        model_tmp = copy.deepcopy(model_prepared)
+        model_int8 = convert_fx(model_tmp.module)
+        # save
+        if rank == 0:
+            torch.jit.save(torch.jit.script(model_int8), os.path.join(args.save_dir, 'backbone-QAT.tar'))
+            torch.save(model_prepared.module.state_dict(), os.path.join(args.save_dir, "model_prepared.pth"))
+            logging.info('backbone-QAT and model_prepared saving successful!')
+        module_partial_fc.save_params()
 
     # release dist
     dist.destroy_process_group()
@@ -158,11 +159,11 @@ if __name__ == "__main__":
     parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
     parser.add_argument('--sample_rate', type=float, default=1.0)
 
-    parser.add_argument('--max_epoch', type=int, default=10, help='20 for glint360k, 100 for webface')
+    parser.add_argument('--max_epoch', type=int, default=3, help='20 for glint360k, 100 for webface')
     parser.add_argument('--lr', type=float, default=1e-2)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight_decay', type=float, default=5e-4)
-    parser.add_argument('--milestones', type=list, default=[5, 8],
+    parser.add_argument('--milestones', type=list, default=[1, 2],
                         help='[6, 11, 15, 18] for glint360k, [40, 70, 90] for webface')
     parser.add_argument('--gamma', type=float, default=0.1)
     parser.add_argument('--dropout', type=float, default=0.0, help='0.0 for glint360k, 0.4 for webface')
@@ -172,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_zoo', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
     parser.add_argument('--set_name', type=str, default='glint360k')
     parser.add_argument('--node', type=str, default='-pruned-QAT')
-    parser.add_argument('--log_fre', type=int, default=100)
+    parser.add_argument('--log_fre', type=int, default=50)
 
     args = parser.parse_args()
     args.save_dir = os.path.join(args.model_zoo, args.set_name + '-' + args.network + args.node)
