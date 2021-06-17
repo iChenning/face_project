@@ -32,7 +32,7 @@ test_trans2 = transforms.Compose([
 ])
 
 
-def extract_feats(backbone, txt_dir, bs=64):
+def extract_feats(backbone, txt_dir, bs=64, is_withflip=True):
     # read path
     f_ = open(txt_dir, 'r')
     f_paths = []
@@ -72,30 +72,39 @@ def extract_feats(backbone, txt_dir, bs=64):
                 img1 = test_trans(img)
                 img1 = torch.unsqueeze(img1, 0)
                 imgs1.append(img1)
-                img1_f = test_trans2(img)
-                img1_f = torch.unsqueeze(img1_f, 0)
-                imgs1_f.append(img1_f)
+                if is_withflip:
+                    img1_f = test_trans2(img)
+                    img1_f = torch.unsqueeze(img1_f, 0)
+                    imgs1_f.append(img1_f)
 
                 img = Image.open(path2).convert("RGB")
                 img2 = test_trans(img)
                 img2 = torch.unsqueeze(img2, 0)
                 imgs2.append(img2)
-                img2_f = test_trans2(img)
-                img2_f = torch.unsqueeze(img2_f, 0)
-                imgs2_f.append(img2_f)
+                if is_withflip:
+                    img2_f = test_trans2(img)
+                    img2_f = torch.unsqueeze(img2_f, 0)
+                    imgs2_f.append(img2_f)
 
             imgs1 = torch.cat(imgs1, dim=0)
-            imgs1_f = torch.cat(imgs1_f, dim=0)
+            feat1 = backbone(imgs1.cuda())
+            if is_withflip:
+                imgs1_f = torch.cat(imgs1_f, dim=0)
+                feat1_f = backbone(imgs1_f.cuda())
+                f1 = feat1 + feat1_f
+                fs1.append(f1.cpu().data)
+            else:
+                fs1.append(feat1.cpu().data)
+
             imgs2 = torch.cat(imgs2, dim=0)
-            imgs2_f = torch.cat(imgs2_f, dim=0)
-            feat1 = backbone(imgs1.to(device))
-            feat1_f = backbone(imgs1_f.to(device))
-            feat2 = backbone(imgs2.to(device))
-            feat2_f = backbone(imgs2_f.to(device))
-            f1 = feat1 + feat1_f
-            f2 = feat2 + feat2_f
-            fs1.append(f1.cpu().data)
-            fs2.append(f2.cpu().data)
+            feat2 = backbone(imgs2.cuda())
+            if is_withflip:
+                imgs2_f = torch.cat(imgs2_f, dim=0)
+                feat2_f = backbone(imgs2_f.cuda())
+                f2 = feat2 + feat2_f
+                fs2.append(f2.cpu().data)
+            else:
+                fs2.append(feat2.cpu().data)
         fs1 = torch.cat(fs1, 0)
         fs1 = F.normalize(fs1)
         fs2 = torch.cat(fs2, 0)
@@ -109,11 +118,15 @@ def main(args):
     backbone = torch.jit.load(args.quantized_dir).to(device)
 
     # feats
-    fs1, fs2, labels = extract_feats(backbone, args.txt_dir, args.bs)
+    fs1, fs2, labels = extract_feats(backbone, args.txt_dir, args.bs, args.is_withflip)
     s = torch.sum(fs1 * fs2, dim=1)
 
     # acc save
     r_ = os.path.join(args.save_root, os.path.split(os.path.split(args.quantized_dir)[0])[-1]) + args.note_info
+    if args.is_withflip:
+        r_ += '-withflip'
+    else:
+        r_ += '-withoutflip'
     if not os.path.exists(r_):
         os.makedirs(r_)
     txt_name = args.txt_dir.split('-')[-1]
@@ -141,6 +154,8 @@ if __name__ == "__main__":
     parser.add_argument('--quantized_dir', type=str,
                         default=r'E:\model-zoo\glint360k-se_iresnet100-pruned-QAT\backbone-QAT.tar')
     parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-agedb_30.txt')
+
+    parser.add_argument('--is_withflip', type=bool, default=False)
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_1')
     parser.add_argument('--note_info', type=str, default='')

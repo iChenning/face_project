@@ -31,7 +31,7 @@ test_trans2 = transforms.Compose([
     ])
 
 
-def extract_feats(backbone, txt_dir, bs=64, isQ=False):
+def extract_feats(backbone, txt_dir, bs=64, is_withflip=True, isQ=False):
     # read path
     if isQ:
         f_ = open(txt_dir, 'r')
@@ -62,16 +62,20 @@ def extract_feats(backbone, txt_dir, bs=64, isQ=False):
             img1 = test_trans(img)
             img1 = torch.unsqueeze(img1, 0)
             imgs1.append(img1)
-            img2 = test_trans2(img)
-            img2 = torch.unsqueeze(img2, 0)
-            imgs2.append(img2)
+            if is_withflip:
+                img2 = test_trans2(img)
+                img2 = torch.unsqueeze(img2, 0)
+                imgs2.append(img2)
 
         imgs1 = torch.cat(imgs1, dim=0)
-        imgs2 = torch.cat(imgs2, dim=0)
         feat1 = backbone(imgs1.to(device))
-        feat2 = backbone(imgs2.to(device))
-        feat = feat1 + feat2
-        feats.append(feat.cpu().data)
+        if is_withflip:
+            imgs2 = torch.cat(imgs2, dim=0)
+            feat2 = backbone(imgs2.to(device))
+            feat = feat1 + feat2
+            feats.append(feat.cpu().data)
+        else:
+            feats.append(feat1.cpu().data)
     feats = torch.cat(feats, 0)
     feats = F.normalize(feats)
     if isQ:
@@ -85,10 +89,10 @@ def main(args):
     backbone = torch.jit.load(args.quantized_dir).to(device)
 
     # key feats
-    key_feats, key_paths = extract_feats(backbone, args.key_dir, args.bs, isQ=False)
+    key_feats, key_paths = extract_feats(backbone, args.key_dir, args.bs, args.is_withflip, isQ=False)
 
     # query feats
-    query_feats, query_paths, IDs = extract_feats(backbone, args.query_dir, args.bs, isQ=True)
+    query_feats, query_paths, IDs = extract_feats(backbone, args.query_dir, args.bs, args.is_withflip, isQ=True)
 
     # similarity
     s = torch.mm(query_feats, key_feats.T)
@@ -101,8 +105,15 @@ def main(args):
     s_max = s.max(axis=1)
     s_new = np.concatenate((s_max[np.newaxis, :], s_argmax[np.newaxis, :]), axis=0)
     r_ = os.path.join(args.save_root, os.path.split(os.path.split(args.quantized_dir)[0])[-1]) + args.note_info
+    if args.is_withflip:
+        r_ += '-withflip'
+    else:
+        r_ += '-withoutflip'
     if not os.path.exists(r_):
         os.makedirs(r_)
+    if args.is_savefeat:
+        np.save(os.path.join(r_, 'key_feats'), key_feats.cpu().numpy())
+        np.save(os.path.join(r_, 'query_feats'), query_feats.cpu().numpy())
     for i in range(s.shape[0]):
         id = IDs[i]
         if id in key_paths[s_argmax[i]] and s_max[i] > args.threshold:
@@ -136,6 +147,9 @@ if __name__ == "__main__":
                         default=r'E:\model-zoo\glint360k-se_iresnet100-pruned-QAT\backbone-QAT.tar')
     parser.add_argument('--query_dir', type=str, default=r'E:\list-zoo\san_results-single-alig-ID.txt')
     parser.add_argument('--key_dir', type=str, default=r'E:\list-zoo\san_3W.txt')
+
+    parser.add_argument('--is_withflip', type=bool, default=True)
+    parser.add_argument('--is_savefeat', type=bool, default=False)
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_N')
     parser.add_argument('--note_info', type=str, default='-3W')
