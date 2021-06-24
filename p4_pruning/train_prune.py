@@ -51,7 +51,7 @@ def main(args):
     f_ = open(args.pruned_info)
     cfg_ = [int(x) for x in f_.read().split()]
     f_.close()
-    backbone = backbones.__dict__[args.network](dropout=args.dropout, cfg=cfg_)
+    backbone = backbones.__dict__[args.network](dropout=args.dropout, cfg=cfg_, embedding_size=args.embedding_size)
     if args.resume:
         try:
             backbone_pth = os.path.join(args.save_dir, "backbone.pth")
@@ -68,7 +68,7 @@ def main(args):
     margin_softmax = losses.__dict__[args.loss]()
     module_partial_fc = PartialFC(
         rank=rank, local_rank=local_rank, world_size=world_size, resume=args.resume,
-        batch_size=args.bs, margin_softmax=margin_softmax, num_classes=360232,
+        batch_size=args.bs, margin_softmax=margin_softmax, num_classes=args.num_classes,
         sample_rate=args.sample_rate, embedding_size=args.embedding_size, prefix=args.save_dir)
 
     # optimizer
@@ -121,6 +121,9 @@ def main(args):
                     loss_v.item(),
                     eta))
 
+            if rank == 0 and (i_iter + 1) % 1000 == 0:
+                torch.save(backbone.module.state_dict(), os.path.join(args.save_dir, "backbone1000.pth"))
+
         scheduler_backbone.step()
         scheduler_pfc.step()
 
@@ -141,10 +144,10 @@ if __name__ == "__main__":
     parser.add_argument('--test_txt', type=str, default='')
     parser.add_argument('--bs', type=int, default=128)
 
-    parser.add_argument('--network', type=str, default='se_iresnet18', help='backbone network')
+    parser.add_argument('--network', type=str, default='iresnet18', help='backbone network')
     parser.add_argument('--pruned_info', type=str,
-                        default='/home/xianfeng.chen/workspace/pruned_info-zoo/glint360k-se_iresnet100.txt')
-    parser.add_argument('--loss', type=str, default='arcloss', help='loss function')
+                        default='/home/xianfeng.chen/workspace/pruned_info-zoo/glint360k-iresnet18-0.75.txt')
+    parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
     parser.add_argument('--sample_rate', type=float, default=1.0)
     parser.add_argument('--resume', type=int, default=0, help='model resuming')
 
@@ -155,13 +158,14 @@ if __name__ == "__main__":
     parser.add_argument('--milestones', type=list, default=[6, 11, 15, 18],
                         help='[6, 11, 15, 18] for glint360k, [40, 70, 90] for webface')
     parser.add_argument('--gamma', type=float, default=0.1)
-    parser.add_argument('--dropout', type=float, default=0.0, help='0 for glint360k, 0.4 for webface')
+    parser.add_argument('--dropout', type=float, default=0.4, help='0 for glint360k, 0.4 for webface')
 
     parser.add_argument('--embedding_size', type=int, default=512)
 
     parser.add_argument('--model_zoo', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
     parser.add_argument('--set_name', type=str, default='glint360k')
-    parser.add_argument('--node', type=str, default='-pruned')
+    parser.add_argument('--num_classes', type=int, default=360232, help='360232 for glink360k, 10572 for webface')
+    parser.add_argument('--node', type=str, default='-pruned_0.75')
     parser.add_argument('--log_fre', type=int, default=100)
 
     args = parser.parse_args()

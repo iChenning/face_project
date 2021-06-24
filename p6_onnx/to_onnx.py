@@ -1,36 +1,35 @@
-import torch
+import os
 import sys
-import torchvision
-import time
+import argparse
+import torch
 
 sys.path.append('.')
 
 import s_backbones as backbones
 from s_utils.load_model import load_normal
-device = torch.device('cpu')
+device = torch.device('cuda')
 
 
-def main():
+def main(args):
     # net
-    print('begin')
-    if len(r'') > 0:
-        f_ = open(r'E:\pruned_info-zoo\glint360k-se_iresnet100.txt')
+    if len(args.pruned_info) > 0:
+        f_ = open(args.pruned_info)
         cfg_ = [int(x) for x in f_.read().split()]
         f_.close()
     else:
         cfg_ = None
-    backbone = backbones.__dict__['iresnet100'](cfg=cfg_)
-    state_dict = load_normal(r'E:\model-zoo\glint360k-iresnet100\backbone.pth')
+    backbone = backbones.__dict__[args.network](cfg=cfg_, embedding_size=args.embedding_size)
+    state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
-    backbone.dropout = torch.nn.Sequential()
     backbone = backbone.to(device)
-    backbone.eval()
-    dummy_input = torch.randn(10, 3, 112, 112).to(device)
     print('load')
 
+    # to onnx
+    backbone.eval()
+    dummy_input = torch.randn(1, 3, 112, 112).to(device)
     input_names = ["actual_input_1"]
-    output_names = ["output1"]
-    torch.onnx.export(backbone, dummy_input, r'E:\model-zoo\glint360k-iresnet100\backbone.onnx',
+    save_dir = os.path.join(os.path.split(args.resume)[0], 'backbone.onnx')
+    torch.onnx.export(backbone, dummy_input, save_dir,
                       verbose=False, input_names=input_names,
                       operator_export_type=torch.onnx.OperatorExportTypes.ONNX, opset_version=11)
 
@@ -51,4 +50,11 @@ def main():
 
 
 if __name__ =='__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--network', type=str, default='shufflenet_v2_x0_5', help='backbone network')
+    parser.add_argument('--embedding_size', type=int, default=512)
+    parser.add_argument('--pruned_info', type=str, default='')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-shufflenet_v2_x0_5-cosloss\backbone.pth')
+
+    args = parser.parse_args()
+    main(args)

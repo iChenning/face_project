@@ -96,7 +96,7 @@ def main(args):
         f_.close()
     else:
         cfg_ = None
-    backbone = backbones.__dict__[args.network](cfg=cfg_)
+    backbone = backbones.__dict__[args.network](cfg=cfg_, embedding_size=args.embedding_size)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
     backbone = backbone.to(device)
@@ -160,9 +160,10 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info-zoo\glint360k-se_iresnet100.txt')
-    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-se_iresnet100-pruned\backbone.pth')
+    parser.add_argument('--network', type=str, default='shufflenet_v2_x0_1', help='backbone network')
+    parser.add_argument('--embedding_size', type=int, default=512)
+    parser.add_argument('--pruned_info', type=str, default='')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-shufflenet_v2_x0_1-cosloss\backbone.pth')
     parser.add_argument('--query_dir', type=str, default=r'E:\list-zoo\san_results-single-alig-ID.txt')
     parser.add_argument('--key_dir', type=str, default=r'E:\list-zoo\san_3W.txt')
 
@@ -172,7 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_N')
     parser.add_argument('--note_info', type=str, default='-3W')
     parser.add_argument('--threshold', type=float, default=0.55)
-    parser.add_argument('--bs', type=int, default=12)
+    parser.add_argument('--bs', type=int, default=64)
 
     args_ = parser.parse_args()
     main(args_)

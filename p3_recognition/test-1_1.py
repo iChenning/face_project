@@ -114,7 +114,7 @@ def main(args):
         f_.close()
     else:
         cfg_ = None
-    backbone = backbones.__dict__[args.network](cfg=cfg_)
+    backbone = backbones.__dict__[args.network](cfg=cfg_, embedding_size=args.embedding_size)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
     backbone = backbone.cuda()
@@ -157,16 +157,17 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='iresnet18', help='backbone network')
+    parser.add_argument('--network', type=str, default='shufflenet_v2_x0_1', help='backbone network')
+    parser.add_argument('--embedding_size', type=int, default=512)
     parser.add_argument('--pruned_info', type=str, default='')
-    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-iresnet18\backbone.pth')
-    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-lfw.txt')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-shufflenet_v2_x0_1-cosloss\backbone.pth')
+    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-cfp_fp.txt')
 
     parser.add_argument('--is_withflip', type=bool, default=False)
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_1')
     parser.add_argument('--note_info', type=str, default='')
-    parser.add_argument('--bs', type=int, default=6)
+    parser.add_argument('--bs', type=int, default=128)
 
     args_ = parser.parse_args()
 

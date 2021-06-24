@@ -87,20 +87,20 @@ def extract_feats(backbone, txt_dir, bs=64, is_withflip=True):
                     imgs2_f.append(img2_f)
 
             imgs1 = torch.cat(imgs1, dim=0)
-            feat1 = backbone(imgs1.cuda())
+            feat1 = backbone(imgs1.to(device))
             if is_withflip:
                 imgs1_f = torch.cat(imgs1_f, dim=0)
-                feat1_f = backbone(imgs1_f.cuda())
+                feat1_f = backbone(imgs1_f.to(device))
                 f1 = feat1 + feat1_f
                 fs1.append(f1.cpu().data)
             else:
                 fs1.append(feat1.cpu().data)
 
             imgs2 = torch.cat(imgs2, dim=0)
-            feat2 = backbone(imgs2.cuda())
+            feat2 = backbone(imgs2.to(device))
             if is_withflip:
                 imgs2_f = torch.cat(imgs2_f, dim=0)
-                feat2_f = backbone(imgs2_f.cuda())
+                feat2_f = backbone(imgs2_f.to(device))
                 f2 = feat2 + feat2_f
                 fs2.append(f2.cpu().data)
             else:
@@ -152,14 +152,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--quantized_dir', type=str,
-                        default=r'E:\model-zoo\glint360k-se_iresnet100-pruned-QAT\backbone-QAT.tar')
-    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-agedb_30.txt')
+                        default=r'E:\model-zoo\glint360k-shufflenet_v2_x0_1-cosloss-PTQ_san_query\backbone.tar')
+    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-lfw.txt')
 
     parser.add_argument('--is_withflip', type=bool, default=False)
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_1')
     parser.add_argument('--note_info', type=str, default='')
-    parser.add_argument('--bs', type=int, default=32)
+    parser.add_argument('--bs', type=int, default=64)
 
     args_ = parser.parse_args()
     rand_seed()

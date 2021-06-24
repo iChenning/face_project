@@ -17,6 +17,7 @@ sys.path.append('.')
 import s_backbones as backbones
 from s_utils.load_model import load_normal
 from s_data.dataset_mx import MXFaceDataset
+from s_data.dataset import MyDataset
 
 
 def calibrate(model, data_loader):
@@ -30,7 +31,6 @@ def calibrate(model, data_loader):
             count += 1
 
 
-
 test_transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
@@ -38,9 +38,10 @@ test_transform = torchvision.transforms.Compose([
 
 def main(args):
     # data
-    trainset = MXFaceDataset(root_dir=args.train_txt)
+    # trainset = MXFaceDataset(root_dir=args.train_txt)
+    trainset = MyDataset(txt_path=args.train_txt)
     train_loader = DataLoader(trainset, args.bs, shuffle=True, num_workers=8,
-                              pin_memory=True, drop_last=True)
+                              pin_memory=True, drop_last=False)
 
     # net
     if len(args.pruned_info) > 0:
@@ -74,18 +75,19 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--train_txt', type=str, default='/data/cve_data/glint360/glint360_data/')
+    # parser.add_argument('--train_txt', type=str, default='/data/cve_data/glint360/glint360_data/')
+    parser.add_argument('--train_txt', type=str, default=r'E:\list-zoo\san_results-single-alig-ID.txt')
     parser.add_argument('--bs', type=int, default=256)
 
-    parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
+    parser.add_argument('--network', type=str, default='shufflenet_v2_x0_1', help='backbone network')
     parser.add_argument('--pruned_info', type=str,
-                        default='/home/xianfeng.chen/workspace/pruned_info-zoo/glint360k-se_iresnet100.txt')
-    parser.add_argument('--resume', type=str,
-                        default='/home/xianfeng.chen/workspace/model-zoo/glint360k-se_iresnet100-pruned/backbone.pth')
+                        default='')
+    # parser.add_argument('--resume', type=str, default='/home/xianfeng.chen/workspace/model-zoo/glint360k-shufflenet_v2_x0_5-cosloss/backbone.pth')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-shufflenet_v2_x0_1-cosloss\backbone.pth')
 
-    parser.add_argument('--save_root', type=str,
-                        default='/home/xianfeng.chen/workspace/model-zoo')
-    parser.add_argument('--note_info', type=str, default='-PTQ2')
+    # parser.add_argument('--save_root', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
+    parser.add_argument('--save_root', type=str, default=r'E:\model-zoo')
+    parser.add_argument('--note_info', type=str, default='-PTQ_san_query')
 
     args = parser.parse_args()
 

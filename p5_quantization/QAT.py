@@ -76,7 +76,7 @@ def main(args):
     margin_softmax = losses.__dict__[args.loss]()
     module_partial_fc = PartialFC(
         rank=rank, local_rank=local_rank, world_size=world_size, resume=args.resume,
-        batch_size=args.bs, margin_softmax=margin_softmax, num_classes=360232,
+        batch_size=args.bs, margin_softmax=margin_softmax, num_classes=args.num_classes,
         sample_rate=args.sample_rate, embedding_size=args.embedding_size, prefix=prefix_)
     # optimizer
     opt_backbone = torch.optim.SGD(params=[{'params': model_prepared.parameters()}],
@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
     parser.add_argument('--pruned_info', type=str,
-                        default='/home/xianfeng.chen/workspace/pruned_info-zoo/glint360k-se_iresnet100.txt')
+                        default='/home/xianfeng.chen/workspace/pruned_info-zoo/glint360k-se_iresnet100-0.3.txt')
     parser.add_argument('--resume', type=str,
                         default='/home/xianfeng.chen/workspace/model-zoo/glint360k-se_iresnet100-pruned-QAT/backbone.pth')
     parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
@@ -172,6 +172,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--model_zoo', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
     parser.add_argument('--set_name', type=str, default='glint360k')
+    parser.add_argument('--num_classes', type=int, default=360232, help='360232 for glink360k, 10572 for webface')
     parser.add_argument('--node', type=str, default='-pruned-QAT')
     parser.add_argument('--log_fre', type=int, default=50)
 

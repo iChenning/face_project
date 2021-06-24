@@ -1,6 +1,7 @@
 import os
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
+from torchvision import transforms
 
 
 class MyDataset(Dataset):
@@ -12,12 +13,24 @@ class MyDataset(Dataset):
         for line in f:
             line = line.rstrip()
             words = line.split()
-            imgs.append((words[0].encode('utf-8'), int(words[1])))
-            labels.append(int(words[1]))
+            # imgs.append((words[0].encode('utf-8'), int(words[1])))
+            imgs.append((words[0].encode('utf-8'), 0))
+            # labels.append(int(words[1]))
+            labels.append(0)
         f.close()
-        self.n_classes = self.labels_check(labels)
+        # self.n_classes = self.labels_check(labels)
         self.imgs = imgs
-        self.transform = transform
+        if transform is not None:
+            self.transform = transform
+        else:
+            self.transform = transforms.Compose(
+                [  # transforms.RandomResizedCrop(112, scale=(0.8, 1.)),
+                    # transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+                    transforms.Resize((112, 112)),
+                    transforms.RandomHorizontalFlip(p=0.5),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                ])
 
     def __getitem__(self, index):
         f_path, label = self.imgs[index]
@@ -25,7 +38,7 @@ class MyDataset(Dataset):
 
         if self.transform is not None:
             img = self.transform(img)
-
+        # print(img.shape, f_path)
         # return (img, label, f_path, index)
         return (img, label)
 
@@ -41,5 +54,3 @@ class MyDataset(Dataset):
         labels_diff = labels_continuous - labels_set
         assert len(labels_diff) == 0, print(labels_diff, len(labels))
         return len(labels_set)
-
-

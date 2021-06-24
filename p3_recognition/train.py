@@ -47,7 +47,7 @@ def main(args):
                               pin_memory=True, sampler=train_sampler, drop_last=True)
 
     # backbone and DDP
-    backbone = backbones.__dict__[args.network](dropout=args.dropout)
+    backbone = backbones.__dict__[args.network](dropout=args.dropout, embedding_size=args.embedding_size)
     if args.resume:
         try:
             backbone_pth = os.path.join(args.save_dir, "backbone.pth")
@@ -64,7 +64,7 @@ def main(args):
     margin_softmax = losses.__dict__[args.loss]()
     module_partial_fc = PartialFC(
         rank=rank, local_rank=local_rank, world_size=world_size, resume=args.resume,
-        batch_size=args.bs, margin_softmax=margin_softmax, num_classes=360232,
+        batch_size=args.bs, margin_softmax=margin_softmax, num_classes=args.num_classes,
         sample_rate=args.sample_rate, embedding_size=args.embedding_size, prefix=args.save_dir)
 
     # optimizer
@@ -116,12 +116,14 @@ def main(args):
                     opt_backbone.state_dict()['param_groups'][0]['lr'],
                     loss_v.item(),
                     eta))
+            if rank == 0 and (i_iter + 1) % 1000 == 0:
+                torch.save(backbone.module.state_dict(), os.path.join(args.save_dir, "backbone1000.pth"))
 
         scheduler_backbone.step()
         scheduler_pfc.step()
 
         # save
-        if rank is 0:
+        if rank == 0:
             torch.save(backbone.module.state_dict(), os.path.join(args.save_dir, "backbone.pth"))
         module_partial_fc.save_params()
 
@@ -137,8 +139,8 @@ if __name__ == "__main__":
     parser.add_argument('--test_txt', type=str, default='')
     parser.add_argument('--bs', type=int, default=128)
 
-    parser.add_argument('--network', type=str, default='se_iresnet18', help='backbone network')
-    parser.add_argument('--loss', type=str, default='arcloss', help='loss function')
+    parser.add_argument('--network', type=str, default='shufflenet_v2_x0_1', help='backbone network')
+    parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
     parser.add_argument('--sample_rate', type=float, default=1.0)
     parser.add_argument('--resume', type=int, default=0, help='model resuming')
 
@@ -155,6 +157,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--model_zoo', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
     parser.add_argument('--set_name', type=str, default='glint360k')
+    parser.add_argument('--num_classes', type=int, default=360232, help='360232 for glink360k, 10572 for webface')
     parser.add_argument('--node', type=str, default='')
     parser.add_argument('--log_fre', type=int, default=100)
 

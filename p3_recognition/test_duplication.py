@@ -41,7 +41,7 @@ def main(args):
         f_.close()
     else:
         cfg_ = None
-    backbone = backbones.__dict__[args.network](cfg=cfg_)
+    backbone = backbones.__dict__[args.network](cfg=cfg_, embedding_size=args.embedding_size)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
     backbone = backbone.cuda()
@@ -120,8 +120,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
+    parser.add_argument('--embedding_size', type=int, default=512)
     parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100-pruned\backbone.pth')
-    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100.txt')
+    parser.add_argument('--pruned_info', type=str, default=r'E:\pruned_info\glint360k-se_iresnet100-0.3.txt')
     parser.add_argument('--txt_dir', type=str, default=r'E:\data_list\san_results-single-alig.txt')
 
     parser.add_argument('--save_root', type=str, default=r'E:\results_dup')

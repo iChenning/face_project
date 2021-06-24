@@ -14,7 +14,7 @@ from thop import profile
 
 def main(args):
     # net
-    backbone = backbones.__dict__[args.network]()
+    backbone = backbones.__dict__[args.network](embedding_size=args.embedding_size)
     state_dict = load_normal(args.resume)
     backbone.load_state_dict(state_dict)
     backbone = backbone.cuda()
@@ -63,7 +63,8 @@ def main(args):
     print('Pruning done!')
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
-    f_dir = os.path.join(args.save_dir, os.path.split(os.path.split(args.resume)[0])[-1] + '.txt')
+    f_name = os.path.split(os.path.split(args.resume)[0])[-1] + '-' + str(args.percent) + '.txt'
+    f_dir = os.path.join(args.save_dir, f_name)
     f_ = open(f_dir, 'w')
     for c in cfg:
         f_.write(str(c) + ' ')
@@ -73,11 +74,12 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
-    parser.add_argument('--resume', type=str, default=r'E:\pre-models\glint360k-se_iresnet100\backbone.pth')
-    parser.add_argument('--percent', type=float, default=0.3,
+    parser.add_argument('--network', type=str, default='iresnet100', help='backbone network')
+    parser.add_argument('--embedding_size', type=int, default=512)
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-iresnet100\backbone.pth')
+    parser.add_argument('--percent', type=float, default=0.5,
                         help='scale sparse rate (default: 0.5)')
-    parser.add_argument('--save_dir', type=str, default=r'E:\pruned_info')
+    parser.add_argument('--save_dir', type=str, default=r'E:\pruned_info-zoo')
 
     args_ = parser.parse_args()
     main(args_)
