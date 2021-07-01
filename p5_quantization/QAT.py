@@ -19,6 +19,7 @@ import s_backbones as backbones
 from s_fc.partial_fc import PartialFC
 from s_utils.load_model import load_normal
 import s_fc.losses as losses
+from s_data.augment import train_trans_list_hard
 from s_data.dataset_mx import MXFaceDataset
 from s_utils.seed_init import rand_seed
 from s_utils.log import init_logging
@@ -42,7 +43,8 @@ def main(args):
         logging.info(args)
 
     # data
-    trainset = MXFaceDataset(root_dir=args.train_txt)
+    trans_list = train_trans_list_hard() if args.augment_hard else None
+    trainset = MXFaceDataset(root_dir=args.train_txt, transform_list=trans_list)
     train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
     train_loader = DataLoader(trainset, args.bs, shuffle=False, num_workers=8,
                               pin_memory=True, sampler=train_sampler, drop_last=True)
@@ -150,6 +152,7 @@ if __name__ == "__main__":
     parser.add_argument('--train_txt', type=str, default='/data/cve_data/glint360/glint360_data/')
     parser.add_argument('--test_txt', type=str, default='')
     parser.add_argument('--bs', type=int, default=96)
+    parser.add_argument('--augment_hard', type=bool, default=False)
 
     parser.add_argument('--network', type=str, default='se_iresnet100', help='backbone network')
     parser.add_argument('--pruned_info', type=str,

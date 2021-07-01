@@ -9,13 +9,15 @@ def main(args):
     # load pc feats
     feats_pc = np.load(args.pth_dir)
     feats_pc = torch.from_numpy(feats_pc)
-    feats_pc = feats_pc[:1]
+    if args.is_select:
+        feats_pc = feats_pc[:args.nums]
 
     # load onnx feats
     feats_onnx = np.load(args.onnx_dir)
     feats_onnx = torch.from_numpy(feats_onnx)
     feats_onnx = F.normalize(feats_onnx)
-    feats_onnx = feats_onnx[:1]
+    if args.is_select:
+        feats_onnx = feats_onnx[:args.nums]
 
     # load deploy step1 float feats -- float
     feats_step1 = np.loadtxt(args.convert_step1_dir)
@@ -23,7 +25,8 @@ def main(args):
     feats_step1 = np.array(feats_step1)
     feats_step1 = torch.from_numpy(feats_step1)
     feats_step1 = F.normalize(feats_step1)
-    feats_step1 = feats_step1[:1]
+    if args.is_select:
+        feats_step1 = feats_step1[:args.nums]
 
     # load deploy step2 float feats -- quantized
     feats_step2 = np.loadtxt(args.convert_step2_dir)
@@ -31,7 +34,8 @@ def main(args):
     feats_step2 = np.array(feats_step2)
     feats_step2 = torch.from_numpy(feats_step2)
     feats_step2 = F.normalize(feats_step2)
-    feats_step2 = feats_step2[:1]
+    if args.is_select:
+        feats_step2 = feats_step2[:args.nums]
 
     # load deploy feats -- deploy
     feats_deploy = []
@@ -49,8 +53,8 @@ def main(args):
     feats_deploy = np.array(feats_deploy)
     feats_deploy = torch.from_numpy(feats_deploy)
     feats_deploy = F.normalize(feats_deploy, dim=1)
-    feats_deploy = feats_deploy[:1]
-    # feats_deploy = torch.flip(feats_deploy, (1,))
+    if args.is_select:
+        feats_deploy = feats_deploy[:args.nums]
 
     print('{}{}{}{}'.
           format(''.rjust(40), 'max'.ljust(9), 'mean'.ljust(9), 'min'.ljust(6)))
@@ -83,6 +87,9 @@ def main(args):
     sim = torch.sum(feats_pc * feats_deploy, dim=1)
     print('{} & {}:{:.4f} | {:.4f} | {:.4f}'.
           format('pth'.rjust(18), 'deploy'.ljust(18), sim.max().item(), sim.mean().item(), sim.min().item()))
+    for i in range(feats_step2.shape[0]):
+        if sim[i] < 0.9:
+            print(i, sim[i])
 
 
 if __name__ == '__main__':
@@ -90,47 +97,16 @@ if __name__ == '__main__':
     parser.add_argument('--pth_dir', default=r'E:\results-1_N\glint360k-iresnet100-3W-withoutflip\query_feats.npy')
     parser.add_argument('--onnx_dir', default=r'E:\results-1_N\glint360k-iresnet100-3W-withoutflip\onnx_feats.npy')
     parser.add_argument('--convert_step1_dir',
-                        default=r'E:\results-deploy\glint360k-iresnet100\out_float\attach_BatchNormalization_BatchNormalization_254_out0_0_out0_280_512.tensor')
+                        default=r'E:\results-deploy\glint360k-iresnet100\out_float\att.tensor')
     parser.add_argument('--convert_step2_dir',
-                        default=r'E:\results-deploy\glint360k-iresnet100\out_quantized\attach_BatchNormalization_BatchNormalization_254_out0_0_out0_280_512.tensor')
+                        default=r'E:\results-deploy\glint360k-iresnet100\out_quantized\att.tensor')
 
     parser.add_argument('--deploy_dir', default=r'E:\results-deploy\glint360k-iresnet100\results_san_query')
     parser.add_argument('--txt_dir', default=r'E:\list-zoo\san_results-single-alig-ID.txt')
 
+    parser.add_argument('--is_select', type=bool, default=False)
+    parser.add_argument('--nums', type=int, default=10)
     parser.add_argument('--embedding_size', type=int, default=512)
 
     args = parser.parse_args()
     main(args)
-
-
-
-    # q_r = r'E:\results-deploy\glint360k-iresnet100\results_san_query'
-    # key_3w_r = r'E:\results-deploy\glint360k-iresnet100\results_3W-alig'
-    # key_san_r = r'E:\results-deploy\glint360k-iresnet100\results_san_FaceID-alig'
-    #
-    # q_n, q_f = read_txt(q_r)
-    # # k_3_n, k_3_f = read_txt(key_3w_r)
-    # k_s_n, k_s_f = read_txt(key_san_r)
-    #
-    # k_n = copy.deepcopy(k_s_n)
-    # # k_n.extend(k_3_n)
-    # # k_f = torch.cat((k_s_f, k_3_f), dim=0)
-    #
-    # # scores
-    # s = torch.mm(q_f, k_s_f.T)
-    # s_argmax, s_max = torch.max(s, dim=1)
-    # a = 1
-
-    # def read_txt(dir_):
-    #     files = os.listdir(dir_)
-    #     files.sort()
-    #     feats = []
-    #     for file in tqdm(files):
-    #         f_ = open(os.path.join(dir_, file), 'r')
-    #         feat = [float(x) for x in f_.read().split()]
-    #         feats.append(feat)
-    #         f_.close()
-    #     feats = np.array(feats)
-    #     feats = torch.from_numpy(feats)
-    #     feats = F.normalize(feats, dim=1)
-    #     return files, feats

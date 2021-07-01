@@ -9,3 +9,4 @@ def rand_seed(seed=0):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.benchmark = True

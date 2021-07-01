@@ -58,6 +58,9 @@ def main(args):
         M = transformation_from_points(np.asmatrix(lands[i][0]), np.asmatrix(coord5point))
         dst = cv2.warpAffine(img_im, M[:2], (img_im.shape[1], img_im.shape[0]))
         crop_im = dst[0:imgSize[0], 0:imgSize[1]]
+        if crop_im.shape[0] != 112 or crop_im.shape[1] != 112:
+            crop_im = cv2.copyMakeBorder(crop_im, 0, 112 - crop_im.shape[0], 0, 112 - crop_im.shape[1],
+                                         cv2.BORDER_CONSTANT, value=[0, 0, 0])
         name_ = os.path.split(pic_path)[-1]
         if not os.path.exists(args.save_dir):
             os.makedirs(args.save_dir)
@@ -72,9 +75,9 @@ def main(args):
 
 if __name__=='__main__':
     parse = argparse.ArgumentParser()
-    parse.add_argument('--txt_dir', type=str, default=r'E:\data_list\san_FaceID.txt')
-    parse.add_argument('--bbox_dir', type=str, default=r'E:\results_save\part2_alignment\san_FaceID\vis_bbox.txt')
-    parse.add_argument('--save_dir', type=str, default=r'E:\datasets\san_FaceID-alig')
+    parse.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\san_results-single.txt')
+    parse.add_argument('--bbox_dir', type=str, default=r'E:\results_save\part2_alignment\san_results-single\vis_bbox.txt')
+    parse.add_argument('--save_dir', type=str, default=r'E:\datasets\san_results-single-alig')
 
     args = parse.parse_args()
     main(args)

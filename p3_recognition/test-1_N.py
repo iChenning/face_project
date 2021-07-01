@@ -27,14 +27,6 @@ test_trans = transforms.Compose([
     ])
 
 
-test_trans2 = transforms.Compose([
-        transforms.Resize((112, 112)),
-        transforms.RandomHorizontalFlip(p=1.0),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    ])
-
-
 def extract_feats(backbone, txt_dir, bs=64, is_withflip=True, isQ=False):
     # read path
     if isQ:
@@ -59,27 +51,22 @@ def extract_feats(backbone, txt_dir, bs=64, is_withflip=True, isQ=False):
     backbone.eval()
     for i in tqdm(range(math.ceil(len(f_paths) / bs))):
         paths = f_paths[i * bs: min(i * bs + bs, len(f_paths))]
-        imgs1 = []
-        imgs2 = []
+        imgs = []
         for f_path in paths:
             img = Image.open(f_path).convert("RGB")
-            img1 = test_trans(img)
-            img1 = torch.unsqueeze(img1, 0)
-            imgs1.append(img1)
-            if is_withflip:
-                img2 = test_trans2(img)
-                img2 = torch.unsqueeze(img2, 0)
-                imgs2.append(img2)
+            img = test_trans(img)
+            img = torch.unsqueeze(img, 0)
+            imgs.append(img)
 
-        imgs1 = torch.cat(imgs1, dim=0)
-        feat1 = backbone(imgs1.to(device))
+        imgs = torch.cat(imgs, dim=0)
+        feat = backbone(imgs.to(device))
         if is_withflip:
-            imgs2 = torch.cat(imgs2, dim=0)
-            feat2 = backbone(imgs2.to(device))
-            feat = feat1 + feat2
+            imgs_f = torch.flip(imgs, (3,))
+            feat_f = backbone(imgs_f.to(device))
+            feat = feat + feat_f
             feats.append(feat.cpu().data)
         else:
-            feats.append(feat1.cpu().data)
+            feats.append(feat.cpu().data)
     feats = torch.cat(feats, 0)
     feats = F.normalize(feats)
     if isQ:

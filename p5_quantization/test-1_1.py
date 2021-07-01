@@ -9,6 +9,7 @@ import shutil
 import os
 from tqdm import tqdm
 import math
+import matplotlib.pyplot as plt
 
 import sys
 
@@ -20,13 +21,6 @@ device = torch.device('cpu')
 
 test_trans = transforms.Compose([
     transforms.Resize((112, 112)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-])
-
-test_trans2 = transforms.Compose([
-    transforms.Resize((112, 112)),
-    transforms.RandomHorizontalFlip(p=1.0),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 ])
@@ -62,9 +56,7 @@ def extract_feats(backbone, txt_dir, bs=64, is_withflip=True):
         for i in tqdm(range(math.ceil(len(paths_labels) / bs))):
             sub_pl = paths_labels[i * bs: min(i * bs + bs, len(f_paths))]
             imgs1 = []
-            imgs1_f = []
             imgs2 = []
-            imgs2_f = []
             for path1, path2, label in sub_pl:
                 labels.append(label)
 
@@ -72,24 +64,16 @@ def extract_feats(backbone, txt_dir, bs=64, is_withflip=True):
                 img1 = test_trans(img)
                 img1 = torch.unsqueeze(img1, 0)
                 imgs1.append(img1)
-                if is_withflip:
-                    img1_f = test_trans2(img)
-                    img1_f = torch.unsqueeze(img1_f, 0)
-                    imgs1_f.append(img1_f)
 
                 img = Image.open(path2).convert("RGB")
                 img2 = test_trans(img)
                 img2 = torch.unsqueeze(img2, 0)
                 imgs2.append(img2)
-                if is_withflip:
-                    img2_f = test_trans2(img)
-                    img2_f = torch.unsqueeze(img2_f, 0)
-                    imgs2_f.append(img2_f)
 
             imgs1 = torch.cat(imgs1, dim=0)
             feat1 = backbone(imgs1.to(device))
             if is_withflip:
-                imgs1_f = torch.cat(imgs1_f, dim=0)
+                imgs1_f = torch.flip(imgs1, (3,))
                 feat1_f = backbone(imgs1_f.to(device))
                 f1 = feat1 + feat1_f
                 fs1.append(f1.cpu().data)
@@ -99,7 +83,7 @@ def extract_feats(backbone, txt_dir, bs=64, is_withflip=True):
             imgs2 = torch.cat(imgs2, dim=0)
             feat2 = backbone(imgs2.to(device))
             if is_withflip:
-                imgs2_f = torch.cat(imgs2_f, dim=0)
+                imgs2_f = torch.flip(imgs2, (3,))
                 feat2_f = backbone(imgs2_f.to(device))
                 f2 = feat2 + feat2_f
                 fs2.append(f2.cpu().data)
@@ -133,17 +117,41 @@ def main(args):
     f_ = open(os.path.join(r_, txt_name), 'w')
     thres = torch.arange(0, 1, 0.001)
     accs = []
+    fprs = []
+    tprs = []
     for thre in thres:
-        acc = torch.sum(s.gt(thre) == labels).item() / labels.shape[0]
-        line = str(round(thre.item(), 4)).ljust(6) + ':' + str(round(acc, 4)).ljust(6) + '\n'
-        f_.write(line)
+        # TP FP TN FN
+        predicts = s.gt(thre)
+        tp = torch.sum(torch.logical_and(predicts, labels)).item()
+        fp = torch.sum(torch.logical_and(predicts, torch.logical_not(labels))).item()
+        tn = torch.sum(torch.logical_and(torch.logical_not(predicts), torch.logical_not(labels))).item()
+        fn = torch.sum(torch.logical_and(torch.logical_not(predicts), labels)).item()
+
+        acc = (tp + tn) / (tp + fp + tn + fn)
+        tpr = tp / (tp + fn)
+        fpr = fp / (fp + tn)
+
         accs.append(acc)
+        tprs.append(tpr)
+        fprs.append(fpr)
+
+        line = 'threshold:{:.4f}, acc:{:.6f}, fpr:{:.6f}, tpr:{:.6f}'.format(thre.item(), acc, fpr, tpr) + '\n'
+        f_.write(line)
     accs = torch.tensor(accs)
     best_acc = torch.max(accs)
     best_idx = torch.argmax(accs)
-    line = str(round(thres[best_idx].item(), 4)).ljust(6) + ':' + str(round(best_acc.item(), 4)).ljust(6) + '\n'
+    line = 'best-acc:{:.6f}, threshold:{:.4f}'.format(best_acc.item(), thres[best_idx]) + '\n'
     f_.write(line)
     f_.close()
+
+    # plot roc
+    plt.plot(fprs, tprs)
+    plt.xlabel('fpr')
+    plt.ylabel('tpr')
+    plt.title('roc curve')
+    name_ = txt_name.split('.')[0]
+    plt.savefig(os.path.join(r_, 'roc-' + name_ + '.png'), dpi=300)
+    plt.show()
 
     print('done')
 
