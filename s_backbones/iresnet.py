@@ -175,7 +175,7 @@ def iresnet34(**kwargs):
 
 def iresnet50(**kwargs):
     return _iresnet('iresnet50', IBasicBlock, [3, 4, 14, 3], **kwargs)
-
+0
 
 def iresnet100(**kwargs):
     return _iresnet('iresnet100', IBasicBlock, [3, 13, 30, 3], **kwargs)

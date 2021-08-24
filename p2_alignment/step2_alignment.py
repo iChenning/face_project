@@ -75,9 +75,9 @@ def main(args):
 
 if __name__=='__main__':
     parse = argparse.ArgumentParser()
-    parse.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\san_results-single.txt')
-    parse.add_argument('--bbox_dir', type=str, default=r'E:\results_save\part2_alignment\san_results-single\vis_bbox.txt')
-    parse.add_argument('--save_dir', type=str, default=r'E:\datasets\san_results-single-alig')
+    parse.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\real.txt')
+    parse.add_argument('--bbox_dir', type=str, default=r'E:\results_save\part2_alignment\real\vis_bbox.txt')
+    parse.add_argument('--save_dir', type=str, default=r'E:\dataset-zoo\face-real\1-N')
 
     args = parse.parse_args()
     main(args)

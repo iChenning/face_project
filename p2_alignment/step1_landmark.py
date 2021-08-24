@@ -181,10 +181,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
-    parser.add_argument('--trained_model', type=str, default=r'E:\pre-models\widerface-mobile0.25\mobile0.25_150.pth')
+    parser.add_argument('--trained_model', type=str, default=r'E:\model-zoo\widerface-mobile0.25\mobile0.25_150.pth')
 
-    parser.add_argument('--txt_dir', type=str, default=r'E:\data_list\san_FaceID.txt')
-    parser.add_argument('--save_folder', type=str, default=r'E:\results_save\part2_alignment\san_FaceID')
+    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\real.txt')
+    parser.add_argument('--save_folder', type=str, default=r'E:\results_save\part2_alignment\real')
     parser.add_argument('--save_image_all', default=True)
 
     parser.add_argument('--confidence_threshold', default=0.6, type=float, help='confidence_threshold')

@@ -12,6 +12,13 @@ import matplotlib.pyplot as plt
 import s_backbones as backbones
 from s_utils.load_model import load_normal
 
+from s_data.MaskTheFace.utils.aux_functions import mask_image2
+import dlib
+import glob
+import cv2
+import numpy as np
+import random
+
 
 test_trans = transforms.Compose([
     transforms.Resize((112, 112)),
@@ -46,6 +53,14 @@ def extract_feats(backbone, txt_dir, bs=64, is_withflip=True):
     fs2 = []
     labels = []
     backbone.eval()
+
+    mask_types = ['N95', 'cloth', 'KN95', 'surgical', 'gas']
+    pattern = []
+    for dir_ in os.listdir(os.path.join(os.getcwd(), 's_data/MaskTheFace/masks/textures')):
+        pattern.extend(glob.glob(os.path.join(os.getcwd(), 's_data/MaskTheFace/masks/textures', dir_) + '/*'))
+    dlib_detector = dlib.get_frontal_face_detector()
+    path_to_dlib_model = "s_data/MaskTheFace/dlib_models/shape_predictor_68_face_landmarks.dat"
+    dlib_predictor = dlib.shape_predictor(path_to_dlib_model)
     for i in tqdm(range(math.ceil(len(paths_labels) / bs))):
         sub_pl = paths_labels[i * bs: min(i * bs + bs, len(f_paths))]
         imgs1 = []
@@ -54,11 +69,21 @@ def extract_feats(backbone, txt_dir, bs=64, is_withflip=True):
             labels.append(label)
 
             img = Image.open(path1).convert("RGB")
+            img = np.asarray(img)
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            img = mask_image2(dlib_detector, dlib_predictor, img, mask_type=random.choice(mask_types), pattern=random.choice(pattern))
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(img)
             img1 = test_trans(img)
             img1 = torch.unsqueeze(img1, 0)
             imgs1.append(img1)
 
             img = Image.open(path2).convert("RGB")
+            img = np.asarray(img)
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            img = mask_image2(dlib_detector, dlib_predictor, img, mask_type=random.choice(mask_types), pattern=random.choice(pattern))
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(img)
             img2 = test_trans(img)
             img2 = torch.unsqueeze(img2, 0)
             imgs2.append(img2)
@@ -121,7 +146,7 @@ def main(args):
         os.makedirs(r_)
     txt_name = args.txt_dir.split('-')[-1]
     f_ = open(os.path.join(r_, txt_name), 'w')
-    thres = torch.arange(0, 1, 0.001)
+    thres = torch.arange(-1, 1, 0.001)
     accs = []
     fprs = []
     tprs = []
@@ -165,16 +190,16 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='iresnet100', help='backbone network')
+    parser.add_argument('--network', type=str, default='iresnet200', help='backbone network')
     parser.add_argument('--embedding_size', type=int, default=512)
     parser.add_argument('--pruned_info', type=str, default='')
-    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-iresnet100-open\backbone.pth')
-    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-cfp_fp.txt')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-iresnet200-cosloss-mask\backbone.pth')
+    parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-lfw.txt')
 
     parser.add_argument('--is_withflip', type=bool, default=False)
 
     parser.add_argument('--save_root', type=str, default=r'E:\results-1_1')
-    parser.add_argument('--note_info', type=str, default='')
+    parser.add_argument('--note_info', type=str, default='-mask')
     parser.add_argument('--bs', type=int, default=6)
 
     args_ = parser.parse_args()

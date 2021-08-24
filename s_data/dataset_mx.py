@@ -3,8 +3,12 @@ import numbers
 import os
 import numpy as np
 import torch
+import cv2
 from torch.utils.data import Dataset
 from torchvision import transforms
+from s_data.MaskTheFace.augment_mask import AugmentMask
+
+
 
 default_trans_list = [
     transforms.Resize((112, 112)),
@@ -30,6 +34,7 @@ class MXFaceDataset(Dataset):
         else:
             self.imgidx = np.array(list(self.imgrec.keys))
 
+        self.aug_mask = AugmentMask('./s_data/MaskTheFace', mask_rate=0.3)
         trans_list = [transforms.ToPILImage()]
         trans_list.extend(transform_list if transform_list is not None else default_trans_list)
         self.transform = transforms.Compose(trans_list)
@@ -43,6 +48,12 @@ class MXFaceDataset(Dataset):
             label = label[0]
         label = torch.tensor(label, dtype=torch.long)
         sample = mx.image.imdecode(img).asnumpy()
+
+        sample = self.aug_mask.mask(sample)
+        # cv2.namedWindow('results')
+        # cv2.imshow('results', cv2.cvtColor(sample, cv2.COLOR_BGR2RGB))
+        # cv2.waitKey(1)
+
         if self.transform is not None:
             sample = self.transform(sample)
         return sample, label

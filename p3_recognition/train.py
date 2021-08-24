@@ -43,7 +43,7 @@ def main(args):
     trans_list = train_trans_list_hard() if args.augment_hard else None
     trainset = MXFaceDataset(root_dir=args.train_txt, transform_list=trans_list)
     train_sampler = torch.utils.data.distributed.DistributedSampler(trainset)
-    train_loader = DataLoader(trainset, args.bs, shuffle=False, num_workers=8,
+    train_loader = DataLoader(trainset, args.bs, shuffle=False, num_workers=16, prefetch_factor=4,
                               pin_memory=True, sampler=train_sampler, drop_last=True)
 
     # backbone and DDP
@@ -140,16 +140,16 @@ if __name__ == "__main__":
     parser.add_argument('--bs', type=int, default=128)
     parser.add_argument('--augment_hard', type=bool, default=False)
 
-    parser.add_argument('--network', type=str, default='iresnet18_v2', help='backbone network')
+    parser.add_argument('--network', type=str, default='iresnet200', help='backbone network')
     parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
     parser.add_argument('--sample_rate', type=float, default=1.0)
     parser.add_argument('--resume', type=int, default=0, help='model resuming')
 
-    parser.add_argument('--max_epoch', type=int, default=20, help='20 for glint360k, 100 for webface')
+    parser.add_argument('--max_epoch', type=int, default=15, help='20 for glint360k, 100 for webface')
     parser.add_argument('--lr', type=float, default=0.1)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight_decay', type=float, default=5e-4)
-    parser.add_argument('--milestones', type=list, default=[6, 11, 15, 18],
+    parser.add_argument('--milestones', type=list, default=[5, 9, 12, 14],
                         help='[6, 11, 15, 18] for glint360k, [40, 70, 90] for webface')
     parser.add_argument('--gamma', type=float, default=0.1)
     parser.add_argument('--dropout', type=float, default=0.0, help='0.0 for glint360k, 0.4 for webface')
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_zoo', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
     parser.add_argument('--set_name', type=str, default='glint360k')
     parser.add_argument('--num_classes', type=int, default=360232, help='360232 for glink360k, 10572 for webface')
-    parser.add_argument('--node', type=str, default='-new')
+    parser.add_argument('--node', type=str, default='-mask')
     parser.add_argument('--log_fre', type=int, default=100)
 
     args = parser.parse_args()

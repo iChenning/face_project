@@ -46,7 +46,7 @@ def main(args):
         os.makedirs(r_)
     name_ = args.folder_dir.split('-')[-1]
     f_ = open(os.path.join(r_, name_ + '.txt'), 'w')
-    thres = torch.arange(0, 1, 0.001)
+    thres = torch.arange(-1, 1, 0.001)
     accs = []
     fprs = []
     tprs = []
