@@ -534,6 +534,10 @@ def mask_image2(dlib_detector, dlib_predictor, image, mask_type='N95', pattern=N
             shape = face_utils.shape_to_np(shape)
             face_landmarks = shape_to_landmarks(shape)
             six_points_on_face, angle = get_six_points(face_landmarks, image)
+            if random.random() > 0.9:
+                six_points_on_face[0, 1] += (six_points_on_face[3, 1] - six_points_on_face[0, 1]) / 2.0
+                six_points_on_face[2, 1] += (six_points_on_face[5, 1] - six_points_on_face[2, 1]) / 2.0
+                six_points_on_face[1, 1] += (six_points_on_face[4, 1] - six_points_on_face[1, 1]) / 3.0
             image = mask_face2(image, six_points_on_face, angle, mask_type, pattern, color)
             return image
 

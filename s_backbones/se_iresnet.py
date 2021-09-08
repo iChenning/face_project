@@ -32,7 +32,7 @@ class SEModule(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc1 = nn.Conv2d(channels, channels // reduction, kernel_size=1,
                              padding=0)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
         self.fc2 = nn.Conv2d(channels // reduction, channels, kernel_size=1,
                              padding=0)
         self.sigmoid = nn.Sigmoid()
@@ -66,7 +66,7 @@ class IBasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
         self.se_module = SEModule(sub_cfg[2], reduction=reduction)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
 
     def forward(self, x):
         identity = x
@@ -133,6 +133,48 @@ class IResNet(nn.Module):
         nn.init.constant_(self.features.weight, 1.0)
         self.features.weight.requires_grad = False
 
+        # # branch
+        # self.eye_l_layer3 = self._make_layer(block,
+        #                                      layers[2] // 5 + 1,
+        #                                      cfg[sum(layers[:2]) * 2: sum(layers[:3]) * 2 + 1],
+        #                                      stride=2,
+        #                                      dilate=replace_stride_with_dilation[1])
+        # self.eye_r_layer3 = self._make_layer(block,
+        #                                      layers[2] // 5 + 1,
+        #                                      cfg[sum(layers[:2]) * 2: sum(layers[:3]) * 2 + 1],
+        #                                      stride=2,
+        #                                      dilate=replace_stride_with_dilation[1])
+        # self.nose_layer3 = self._make_layer(block,
+        #                                     layers[2] // 5 + 1,
+        #                                     cfg[sum(layers[:2]) * 2: sum(layers[:3]) * 2 + 1],
+        #                                     stride=2,
+        #                                     dilate=replace_stride_with_dilation[1])
+        # self.mouth_layer3 = self._make_layer(block,
+        #                                      layers[2] // 5 + 1,
+        #                                      cfg[sum(layers[:2]) * 2: sum(layers[:3]) * 2 + 1],
+        #                                      stride=2,
+        #                                      dilate=replace_stride_with_dilation[1])
+        # self.eye_l_layer4 = self._make_layer(block,
+        #                                      (layers[3] + 1) // 2,
+        #                                      cfg[sum(layers[:3]) * 2: sum(layers[:]) * 2 + 1],
+        #                                      stride=2,
+        #                                      dilate=replace_stride_with_dilation[2])
+        # self.eye_r_layer4 = self._make_layer(block,
+        #                                      (layers[3] + 1) // 2,
+        #                                      cfg[sum(layers[:3]) * 2: sum(layers[:]) * 2 + 1],
+        #                                      stride=2,
+        #                                      dilate=replace_stride_with_dilation[2])
+        # self.nose_layer4 = self._make_layer(block,
+        #                                     (layers[3] + 1) // 2,
+        #                                     cfg[sum(layers[:3]) * 2: sum(layers[:]) * 2 + 1],
+        #                                     stride=2,
+        #                                     dilate=replace_stride_with_dilation[2])
+        # self.mouth_layer4 = self._make_layer(block,
+        #                                      (layers[3] + 1) // 2,
+        #                                      cfg[sum(layers[:3]) * 2: sum(layers[:]) * 2 + 1],
+        #                                      stride=2,
+        #                                      dilate=replace_stride_with_dilation[2])
+
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.normal_(m.weight, 0, 0.1)
@@ -179,8 +221,35 @@ class IResNet(nn.Module):
         x = self.prelu(x)
         x = self.layer1(x)
         x = self.layer2(x)
+
+        # x_eye_l = x[:, :, 8:16, 4:12].clone()
+        # x_eye_r = x[:, :, 8:16, 12:20].clone()
+        # x_nose = x[:, :, 12:20, 8:16].clone()
+        # x_mouth = x[:, :, 16:24, 8:16].clone()
+        # x_eye_l = self.eye_l_layer3(x_eye_l)
+        # x_eye_r = self.eye_r_layer3(x_eye_r)
+        # x_nose = self.nose_layer3(x_nose)
+        # x_mouth = self.mouth_layer3(x_mouth)
         x = self.layer3(x)
+        # x[:, :, 4:8, 2:6] += x_eye_l * 0.3
+        # x[:, :, 4:8, 6:10] += x_eye_r * 0.3
+        # x[:, :, 6:10, 4:8] += x_nose * 0.3
+        # x[:, :, 8:12, 4:8] += x_mouth * 0.3
+
+        # x_eye_l = x[:, :, 4:8, 2:6].clone()
+        # x_eye_r = x[:, :, 4:8, 6:10].clone()
+        # x_nose = x[:, :, 6:10, 4:8].clone()
+        # x_mouth = x[:, :, 8:12, 4:8].clone()
+        # x_eye_l = self.eye_l_layer4(x_eye_l)
+        # x_eye_r = self.eye_r_layer4(x_eye_r)
+        # x_nose = self.nose_layer4(x_nose)
+        # x_mouth = self.mouth_layer4(x_mouth)
         x = self.layer4(x)
+        # x[:, :, 2:4, 1:3] += x_eye_l * 0.5
+        # x[:, :, 2:4, 3:5] += x_eye_r * 0.5
+        # x[:, :, 3:5, 2:4] += x_nose * 0.5
+        # x[:, :, 4:6, 2:4] += x_mouth * 0.5
+
         x = self.bn2(x)
         x = torch.flatten(x, 1)
         x = self.dropout(x)

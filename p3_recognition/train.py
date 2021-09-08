@@ -141,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument('--augment_hard', type=bool, default=False)
 
     parser.add_argument('--network', type=str, default='iresnet200', help='backbone network')
-    parser.add_argument('--loss', type=str, default='cosloss', help='loss function')
+    parser.add_argument('--loss', type=str, default='arcloss', help='loss function')
     parser.add_argument('--sample_rate', type=float, default=1.0)
     parser.add_argument('--resume', type=int, default=0, help='model resuming')
 
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--embedding_size', type=int, default=512)
 
-    parser.add_argument('--model_zoo', type=str, default='/home/xianfeng.chen/workspace/model-zoo')
+    parser.add_argument('--model_zoo', type=str, default='/data/cve_data/results/xianfeng.chen/model-zoo')
     parser.add_argument('--set_name', type=str, default='glint360k')
     parser.add_argument('--num_classes', type=int, default=360232, help='360232 for glink360k, 10572 for webface')
     parser.add_argument('--node', type=str, default='-mask')

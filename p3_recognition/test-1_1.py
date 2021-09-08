@@ -190,10 +190,10 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch ArcFace Training')
 
-    parser.add_argument('--network', type=str, default='iresnet200', help='backbone network')
+    parser.add_argument('--network', type=str, default='se_iresnet200', help='backbone network')
     parser.add_argument('--embedding_size', type=int, default=512)
     parser.add_argument('--pruned_info', type=str, default='')
-    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-iresnet200-cosloss-mask\backbone.pth')
+    parser.add_argument('--resume', type=str, default=r'E:\model-zoo\glint360k-se_iresnet200-arcloss-mask\backbone.pth')
     parser.add_argument('--txt_dir', type=str, default=r'E:\list-zoo\test-1_1-lfw.txt')
 
     parser.add_argument('--is_withflip', type=bool, default=False)
