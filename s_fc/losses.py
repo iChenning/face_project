@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import math
 
-__all__ = ['cosloss', 'arcloss']
+__all__ = ['cosloss', 'arcloss', 'arccosloss']
 
 
 class CosFace(nn.Module):
@@ -87,3 +87,35 @@ class ArcFace(nn.Module):
 
 def arcloss(s=64., m=0.5):
     return ArcFace(s, m)
+
+
+class ArcCosFace(nn.Module):
+    def __init__(self, s=64.0, m=0.5, m_cos=0.4):
+        super(ArcFace, self).__init__()
+        self.s = s
+        self.m = m
+        self.m_cos = m_cos
+
+    def forward(self, cosine: torch.Tensor, label):
+        index = torch.where(label != -1)[0]
+        m_hot = torch.zeros(index.size()[0], cosine.size()[1], device=cosine.device)
+        m_hot.scatter_(1, label[index, None], self.m)
+        # cosine.clamp_(min=-1.0 + 1e-7, max=1.0 - 1e-7)
+        cosine.acos_()
+        cosine[index] += m_hot
+        cosine.cos_().mul_(self.s)
+        
+        m_cos_hot = torch.zeros(index.size()[0], cosine.size()[1], device=cosine.device)
+        m_cos_hot.scatter_(1, label[index, None], self.m_cos)
+        cosine[index] -= m_cos_hot
+
+        if torch.isnan(cosine).sum() > 0:
+            index = torch.where(torch.isnan(cosine))
+            print(3, index)
+            print(3, cosine[index])
+            assert False, torch.isnan(cosine).sum()
+        return cosine
+
+
+def arccosloss(s=64., m=0.5, m_cos=0.4):
+    return ArcFace(s, m, m_cos)
