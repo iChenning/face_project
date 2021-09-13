@@ -91,7 +91,7 @@ def arcloss(s=64., m=0.5):
 
 class ArcCosFace(nn.Module):
     def __init__(self, s=64.0, m=0.5, m_cos=0.4):
-        super(ArcFace, self).__init__()
+        super(ArcCosFace, self).__init__()
         self.s = s
         self.m = m
         self.m_cos = m_cos
@@ -118,4 +118,4 @@ class ArcCosFace(nn.Module):
 
 
 def arccosloss(s=64., m=0.5, m_cos=0.4):
-    return ArcFace(s, m, m_cos)
+    return ArcCosFace(s, m, m_cos)

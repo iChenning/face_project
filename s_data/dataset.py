@@ -1,7 +1,10 @@
 import os
+import random
+import numpy as np
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
 from torchvision import transforms
+from s_data.MaskTheFace.augment_mask import AugmentMask
 
 default_trans_list = [
     transforms.Resize((112, 112)),
@@ -34,13 +37,24 @@ class MyDataset(Dataset):
 
         # imgs and transform
         self.imgs = imgs
-        trans_list = transform_list if transform_list is not None else default_trans_list
+        self.aug_mask = AugmentMask('./s_data/MaskTheFace', mask_rate=0.3)
+        trans_list = [transforms.ToPILImage()]
+        trans_list.extend(transform_list if transform_list is not None else default_trans_list)
         self.transform = transforms.Compose(trans_list)
 
     def __getitem__(self, index):
         f_path, label = self.imgs[index]
-        img = Image.open(f_path).convert("RGB")
+        wait_read = True
+        while wait_read:
+            try:
+                img = Image.open(f_path).convert("RGB")
+                wait_read = False
+            except:
+                print(f_path)
+                f_path, label = self.imgs[random.randint(0, len(self.imgs) - 1)]
 
+        img = np.asarray(img)
+        img = self.aug_mask.mask(img)
         img = self.transform(img)
 
         # return (img, label, f_path, index)
