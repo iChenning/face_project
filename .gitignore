@@ -1,2 +1,25 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea
+s_backbones/__pycache__/__init__.cpython-36.pyc
+s_backbones/__pycache__/iresnet.cpython-36.pyc
+s_backbones/__pycache__/iresnetv2.cpython-36.pyc
+s_backbones/__pycache__/mobilenetv3.cpython-36.pyc
+s_backbones/__pycache__/se_iresnet_branch.cpython-36.pyc
+s_backbones/__pycache__/se_iresnet.cpython-36.pyc
+s_backbones/__pycache__/shufflenetv2.cpython-36.pyc
+s_data/__pycache__/__init__.cpython-36.pyc
+s_data/__pycache__/augment.cpython-36.pyc
+s_data/__pycache__/dataset_mx.cpython-36.pyc
+s_data/__pycache__/dataset.cpython-36.pyc
+s_data/MaskTheFace/__pycache__/augment_mask.cpython-36.pyc
+s_data/MaskTheFace/utils/__pycache__/__init__.cpython-36.pyc
+s_data/MaskTheFace/utils/__pycache__/aux_functions.cpython-36.pyc
+s_data/MaskTheFace/utils/__pycache__/create_mask.cpython-36.pyc
+s_data/MaskTheFace/utils/__pycache__/fit_ellipse.cpython-36.pyc
+s_data/MaskTheFace/utils/__pycache__/read_cfg.cpython-36.pyc
+s_fc/losses.py
+s_fc/__pycache__/__init__.cpython-36.pyc
+s_fc/__pycache__/losses.cpython-36.pyc
+s_fc/__pycache__/partial_fc.cpython-36.pyc
+s_utils/__pycache__/log.cpython-36.pyc
+s_utils/__pycache__/seed_init.cpython-36.pyc
