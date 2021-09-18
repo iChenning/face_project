@@ -8,7 +8,7 @@ num_classes = 2057290
 weight = torch.zeros(num_classes, 512)
 weight_count = torch.zeros(num_classes)
 
-for i in range(2):
+for i in range(18):
     feature = torch.load(os.path.join(save_dir, str(i) + '_feature.pth'))
     label = torch.load(os.path.join(save_dir, str(i) + '_label.pth'))
     for idx in tqdm(range(feature.shape[0])):
@@ -27,4 +27,4 @@ for i_rank in range(world_size):
     weight_name = os.path.join(save_dir, "rank:{}_softmax_weight.pt".format(i_rank))
 
     weight_cur = weight[class_start: class_start + num_local]
-    torch.save(weight_cur, weight_name)
+    torch.save(weight_cur.to(torch.device("cuda:{}".format(i_rank))), weight_name)

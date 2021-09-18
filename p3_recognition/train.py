@@ -149,11 +149,11 @@ if __name__ == "__main__":
     parser.add_argument('--sample_rate', type=float, default=1.0)
     parser.add_argument('--resume', type=int, default=0, help='model resuming')
 
-    parser.add_argument('--max_epoch', type=int, default=7, help='9 for webface260m, 20 for glint360k, 100 for webface')
-    parser.add_argument('--lr', type=float, default=0.001)  # 0.1
+    parser.add_argument('--max_epoch', type=int, default=15, help='9 for webface260m, 20 for glint360k, 100 for webface')
+    parser.add_argument('--lr', type=float, default=0.1)  # 0.1
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--weight_decay', type=float, default=5e-4)
-    parser.add_argument('--milestones', type=list, default=[4, 6],
+    parser.add_argument('--milestones', type=list, default=[5, 9, 12, 14],
                         help='[3, 5, 7, 8] for webface260m, [6, 11, 15, 18] for glint360k, [40, 70, 90] for webface')
     parser.add_argument('--gamma', type=float, default=0.1)
     parser.add_argument('--dropout', type=float, default=0.0, help='0.0 for glint360k, 0.4 for webface')

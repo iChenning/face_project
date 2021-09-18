@@ -27,9 +27,14 @@ class AugmentMask(object):
 
     def mask(self, sample):
         if random.random() <= self.mask_rate:
-            sample = np.asarray(sample)
-            sample = cv2.cvtColor(sample, cv2.COLOR_RGB2BGR)
-            sample = mask_image2(self.dlib_detector, self.dlib_predictor, sample,
-                                 mask_type=random.choice(self.mask_types), pattern=random.choice(self.pattern))
-            sample = cv2.cvtColor(sample, cv2.COLOR_BGR2RGB)
-        return sample
+            try:
+                sample_new = np.asarray(sample)
+                sample_new = cv2.cvtColor(sample_new, cv2.COLOR_RGB2BGR)
+                sample_new = mask_image2(self.dlib_detector, self.dlib_predictor, sample_new,
+                                    mask_type=random.choice(self.mask_types), pattern=random.choice(self.pattern))
+                sample_new = cv2.cvtColor(sample_new, cv2.COLOR_BGR2RGB)
+                return sample_new
+            except:
+                return sample
+        else:
+            return sample
